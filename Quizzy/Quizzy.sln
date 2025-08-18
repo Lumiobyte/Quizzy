@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36301.6 d17.14
+VisualStudioVersion = 17.14.36301.6
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quizzy", "Quizzy\Quizzy.csproj", "{5873BD16-578A-4596-A14C-8EDFAD263DD3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quizzy.Web", "Quizzy\Quizzy.Web.csproj", "{5873BD16-578A-4596-A14C-8EDFAD263DD3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quizzy.Core", "Quizzy.Core\Quizzy.Core.csproj", "{610E70AE-7596-4E59-A06A-0FEF1390D1D1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quizzy.Infrastructure", "Quizzy.Infrastructure\Quizzy.Infrastructure.csproj", "{4D223243-84F1-4D54-B548-113B5AF6CE3E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{5873BD16-578A-4596-A14C-8EDFAD263DD3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5873BD16-578A-4596-A14C-8EDFAD263DD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5873BD16-578A-4596-A14C-8EDFAD263DD3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{610E70AE-7596-4E59-A06A-0FEF1390D1D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{610E70AE-7596-4E59-A06A-0FEF1390D1D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{610E70AE-7596-4E59-A06A-0FEF1390D1D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{610E70AE-7596-4E59-A06A-0FEF1390D1D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D223243-84F1-4D54-B548-113B5AF6CE3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D223243-84F1-4D54-B548-113B5AF6CE3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D223243-84F1-4D54-B548-113B5AF6CE3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D223243-84F1-4D54-B548-113B5AF6CE3E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
