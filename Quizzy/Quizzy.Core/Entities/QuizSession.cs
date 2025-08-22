@@ -16,6 +16,9 @@ namespace Quizzy.Core.Entities
 
         public QuizState State { get; set; } = QuizState.Lobby;
 
+        public int QuizHostId { get; set; }
+        public UserAccount QuizHost { get; set; }
+
         public int QuizId { get; set; }
         public Quiz Quiz { get; set; }
 
