@@ -11,13 +11,11 @@ namespace Quizzy.Core.Entities
 
         public int Id { get; set; }
 
-        public int QuizSessionId { get; set; }
-        public QuizSession QuizSession { get; set; }
-
         public int PlayerAnswerId { get; set; }
         public PlayerAnswer PlayerAnswer { get; set; }
 
         public int TimeTaken { get; set; }
 
+        // May have more later, or may end up getting removed idk yet
     }
 }
