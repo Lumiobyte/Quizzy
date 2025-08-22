@@ -12,7 +12,7 @@ namespace Quizzy.Infrastructure.Services
         IQuizLoggerService Instance { get; set; }
 
         public void LogAnswer(QuizSession session, PlayerAnswer playerAnswer);
-        public void RetrieveLogs(QuizSession session); // Will not be void in final product, is just a stub since im not sure how i want to handle this rn
+        public LogInfo[] RetrieveLogs(QuizSession session);
         public void ClearLogsForSession(QuizSession session);
     }
 }

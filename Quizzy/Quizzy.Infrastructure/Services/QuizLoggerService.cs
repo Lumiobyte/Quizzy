@@ -29,9 +29,9 @@ namespace Quizzy.Infrastructure.Services
             // Save to db
         }
 
-        public void RetrieveLogs(QuizSession session)
+        public LogInfo[] RetrieveLogs(QuizSession session)
         {
-
+            return new LogInfo[0];
         }
 
         public void ClearLogsForSession(QuizSession session)
