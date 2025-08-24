@@ -1,13 +1,138 @@
-﻿@{
-    ViewData["Title"] = "Quiz Creator";
-}
-<h1>@ViewData["Title"]</h1>
+﻿@model Quizzy.Models.QuizCreatorModel
 
-<div class="text-center">
-    <p>text!</p>
+<form method="post" id="quizForm">
+    <label for="Title">Quiz Title:</label>
+    <input type="text" id="Title" name="Title" value="@Model.Title" /><br /><br />
 
-    @if (Model.exists)
+    <div id="questionsContainer">
+        @for (int i = 0; i < Model.Questions.Count; i++)
+        {
+            <div class="question-block">
+                <label>Question @(i + 1):</label><br />
+                <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" oninput="updateSaveButtonStatecreateBtn" /><br /><br />
+                <div class="answers" id="answers-@i">
+                    @for (int j = 0; j < Model.Questions[i].Answers.Count; j++)
+                    {
+                        <div>
+                            <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" oninput="updateSaveButtonState"/>
+                            <label>
+                                <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" oninput="updateSaveButtonState" />
+                                Correct
+                            </label>
+                            <br />
+                        </div>
+                    }
+                </div>
+                <button type="button" onclick="addAnswer(@i)">Add Answer</button><br /><br />
+            </div>
+        }
+    </div>
+
+    <button type="button" onclick="addQuestion()">Add Question</button><br /><br />
+    <div class="save-options">
+        @if (Model.QuizSourceId.HasValue)
+        {
+            <button id="updateBtn" type="submit" onclick="saveQuiz(false)">Update Quiz</button>
+		}
+        <button id="createBtn" type="submit" onclick="saveQuiz(true)">Save as New Quiz</button>
+    </div>
+</form>
+
+<script>
+    let questionCount = @Model.Questions.Count;
+    let answerCounts = [];
+    @for (int i = 0; i < Model.Questions.Count; i++)
     {
-        <p>Model exists</p>
+        <text>answerCounts[@i] = @Model.Questions[i].Answers.Count;</text>
     }
-</div>
+	updateSaveButtonState();
+
+    function updateSaveButtonState() { // Fix later
+        console.log("updating");
+        const createBtn = document.getElementById("createBtn");
+        const updateBtn = document.getElementById("updateBtn");
+        if (isQuizValid()) {
+            createBtn.removeAttribute("disabled");
+        }
+        else {
+            createBtn.setAttribute("disabled", "disabled");
+        }
+	}
+
+    function addQuestion() {
+        const container = document.getElementById("questionsContainer");
+        const qIdx = questionCount;
+        answerCounts[qIdx] = 0;
+
+        const questionDiv = document.createElement("div");
+        questionDiv.className = "question-block";
+        questionDiv.innerHTML = `
+            <hr />
+            <label>Question ${qIdx + 1}:</label><br />
+            <input type="text" name="Questions[${qIdx}].Text" class="question-text" /><br /><br />
+            <div class="answers" id="answers-${qIdx}"></div>
+            <button type="button" onclick="addAnswer(${qIdx})">Add Answer</button><br /><br />
+        `;
+        container.appendChild(questionDiv);
+        questionCount++;
+        updateSaveButtonState()
+    }
+
+    function addAnswer(questionId) {
+        if (typeof answerCounts[questionId] === "undefined") answerCounts[questionId] = 0;
+        const answersDiv = document.getElementById(`answers-${questionId}`);
+        const aIdx = answerCounts[questionId];
+
+        const answerDiv = document.createElement("div");
+        answerDiv.innerHTML = `
+            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text" />
+            <label>
+                <input type="checkbox" name="Questions[${questionId}].Answers[${aIdx}].IsCorrect" value="true" class="answer-correct" />
+                Correct
+            </label><br />
+        `;
+        answersDiv.appendChild(answerDiv);
+        answerCounts[questionId]++;
+        updateSaveButtonState()
+    }
+
+    function saveQuiz(createNew) {
+        console.log("saving");
+        if (isQuizValid()) {
+            console.log("valid");
+            const out = Model.SaveQuiz(createNew);
+            console.log("saved");
+            alert(out);
+            console.log("done");
+        }
+        else alert("There are errors in the quiz. Please fix these before saving.")
+    }
+
+    function isQuizValid() {
+        const questions = document.querySelectorAll(".question-block");
+        if (questions.length === 0) return false;
+        for (let q of questions) {
+            if (q.querySelector(".question-text").value.trim() === "") return false;
+
+            const answers = q.querySelectorAll(".answer-text");
+            if (answers.length < 2) return false;
+
+            let hasCorrect = false;
+            for (let i = 0; i < answers.length; i++) {
+                const answerText = answers[i].value.trim();
+                const isCorrect = q.querySelectorAll(".answer-correct")[i].checked;
+                if (answerText === "") return false;createBtn
+                if (isCorrect) hasCorrect = true;
+            }
+            if (!hasCorrect) return false;
+        }
+        return true;
+	}
+</script>
+
+<style>
+    .save-options {
+        display: inline-block;
+        margin-right: 10px;
+    }
+</style>

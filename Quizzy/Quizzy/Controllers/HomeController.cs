@@ -30,7 +30,7 @@ namespace Quizzy.Controllers
 
         public IActionResult CreateQuiz()
         {
-            return View(new QuizCreatorController());
+            return View(new QuizCreatorModel());
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
