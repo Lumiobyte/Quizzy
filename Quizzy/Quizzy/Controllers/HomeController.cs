@@ -23,6 +23,16 @@ namespace Quizzy.Controllers
             return View();
         }
 
+        public IActionResult Login()
+        {
+            return View();
+        }
+
+        public IActionResult CreateQuiz()
+        {
+            return View(new QuizCreatorController());
+        }
+
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

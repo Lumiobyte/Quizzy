@@ -10,7 +10,7 @@ namespace Quizzy.Core.Entities
     {
 
         public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string Name { get; set; }
 
         public int UserAccountId { get; set; }
         public UserAccount UserAccount { get; set; }

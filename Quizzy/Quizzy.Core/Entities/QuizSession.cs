@@ -12,11 +12,13 @@ namespace Quizzy.Core.Entities
 
         public int Id { get; set; }
 
-        public string GamePin { get; set; } = string.Empty;
+        public string GamePin { get; set; }
 
         public QuizState State { get; set; } = QuizState.Lobby;
 
-        // Foreign key to Quiz
+        public int QuizHostId { get; set; }
+        public UserAccount QuizHost { get; set; }
+
         public int QuizId { get; set; }
         public Quiz Quiz { get; set; }
 
