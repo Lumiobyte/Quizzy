@@ -43,7 +43,7 @@ namespace Quizzy
 
             app.MapBlazorHub();
             app.MapHub<UserHub>("/userhub");
-            app.MapFallbackToPage("/_Host");
+            app.MapFallbackToPage("/Home/Login");
 
             app.Run();
         }
