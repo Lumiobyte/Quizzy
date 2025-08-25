@@ -1,10 +1,10 @@
 ﻿@{
-    ViewData["Title"] = "Login";
+    ViewData["Title"] = "Register";
 }
 <h1>@ViewData["Title"]</h1>
 
 <div class="text-center">
-    <h2>Provide your account details:</h2>
+    <h2>Please put in new account details:</h2>
     <div class="inline-block">
         <a>Username: </a>
 		<input id="username-input" type="text" />
@@ -14,40 +14,44 @@
         <input id="password-input" type="text" />
     </div>
     <div class="inline-block">
-		<button id="login-button" class="btn btn-primary" >Login</button>
+        <a>Email: </a>
+        <input id="email-input" type="text" />
     </div>
+	<button id="register-button" class="btn btn-primary" >Create account</button>
 </div>
 
 <script type="module">
     import { localStorageKeys, SetLocalStorage } from '/js/utils.js';
 
-    function login() {
+    function register() {
         var username = document.getElementById("username-input").value;
         var password = document.getElementById("password-input").value;
-        if (username === "" || password === "") {
+        var email = document.getElementById("email-input").value;
+        if (username === "" || password === "" || email === "") {
             alert("Please fill in both fields.");
             return;
         }
 
-        fetch('/auth/login', {
+        fetch('/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username, password: password })
+            body: JSON.stringify({ username: username, password: password, email: email })
         })
         .then(response => response.json())
         .then(data => {
             if (data.id) {
+                console.log("Success");
                 SetLocalStorage(localStorageKeys.UserId, data.id);
-                alert("Logged in successfully")
+                alert("Registered successfully")
                 window.location.href = '/';
-            } else alert("Login failed: " + data.message);
+            } else alert("Register failed: " + data.message);
         })
         .catch(error => {
             console.error('Error:', error);
-            alert("An error occurred during login.");
+            alert("An error occurred during register.");
         });
     }
-    document.getElementById("login-button").addEventListener("click", login);
+    document.getElementById("register-button").addEventListener("click", register);
 </script>
 
 <style>

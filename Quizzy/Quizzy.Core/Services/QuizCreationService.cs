@@ -9,8 +9,8 @@ namespace Quizzy.Core.Services
 {
     public class QuizCreationService : IQuizCreationService
     {
-        IQuizCreationService? instance = null;
-        public IQuizCreationService Instance
+        static IQuizCreationService? instance = null;
+        public static IQuizCreationService Instance
         {
             get
             {
