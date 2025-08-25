@@ -1,5 +1,8 @@
 ﻿@model Quizzy.Models.QuizCreatorModel
 
+<button type="button" id="importJsonBtn">Import from JSON</button>
+<input type="file" id="importJsonInput" accept=".json,application/json" style="display:none;" />
+<br />
 <label for="Title">Quiz Title:</label>
 <input type="text" id="Title" name="Title" value="@Model.Title" />
 <br />
@@ -10,7 +13,6 @@
     {
         <div class="question-block" style="position:relative;">
             <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
-            <label>Question @(i + 1):</label><br />
             <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
             <div class="answers" id="answers-@i">
                 @for (int j = 0; j < Model.Questions[i].Answers.Count; j++)
@@ -34,12 +36,14 @@
 <button type="button" onclick="addQuestion()">Add Question</button>
 <br />
 <br />
+@* Patapim *@
 <div class="save-options">
     @if (Model.QuizSourceId > 0)
     {
         <button id="updateBtn" type="submit" onclick="saveQuiz(false)">Update Quiz</button>
     }
     <button id="createBtn" type="submit" onclick="saveQuiz(true)">Save as New Quiz</button>
+    <button id="exportJsonBtn" onclick="downloadJSON()">Download as JSON</button>
 </div>
 
 <script>
@@ -51,17 +55,19 @@
     }
 	updateSaveButtonState();
 
-    function updateSaveButtonState() { // Fix later
-        console.log("updating");
+    function updateSaveButtonState() {
         const createBtn = document.getElementById("createBtn");
+        const jsonBtn = document.getElementById("exportJsonBtn");
         const updateBtn = document.getElementById("updateBtn");
         if (isQuizValid()) {
             createBtn.removeAttribute("disabled");
-            if (updateBtn) updateBtn.removeAttribute("disabled");
+            jsonBtn.removeAttribute("disabled");
+            if (updateBtn !== null) updateBtn.removeAttribute("disabled");
         }
         else {
             createBtn.setAttribute("disabled", "disabled");
-            if (updateBtn) updateBtn.setAttribute("disabled", "disabled");
+            jsonBtn.setAttribute("disabled", "disabled");
+            if (updateBtn !== null) updateBtn.setAttribute("disabled", "disabled");
         }
 	}
 
@@ -75,7 +81,6 @@
         questionDiv.style.position = "relative";
         questionDiv.innerHTML = `
             <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
-            <label>Question ${qIdx + 1}:</label><br />
             <input type="text" name="Questions[${qIdx}].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
             <div class="answers" id="answers-${qIdx}"></div>
             <button type="button" onclick="addAnswer(${qIdx})">Add Answer</button><br /><br />
@@ -184,6 +189,33 @@
         answerDiv.remove();
         updateSaveButtonState();
     }
+
+    function downloadJSON() {
+        const quizData = getQuizDataFromPage();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quizData, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", (quizData.title || "quiz") + ".json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    document.getElementById("importJsonBtn").addEventListener("click", function() {
+        document.getElementById("importJsonInput").click();
+    });
+
+    document.getElementById("importJsonInput").addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const json = e.target.result;
+            const encoded = encodeURIComponent(btoa(json));
+            window.location.href = `/Home/CreateQuiz?import=${encoded}`;
+        };
+        reader.readAsText(file);
+    });
 </script>
 
 <style>

@@ -28,9 +28,27 @@ namespace Quizzy.Controllers
             return View();
         }
 
-        public IActionResult CreateQuiz()
+        public IActionResult CreateQuiz(int id = -1, string? import = null)
         {
-            return View(new QuizCreatorModel(4));
+            QuizCreatorModel quiz;
+
+            if (id > 0)
+            {
+                quiz = new QuizCreatorModel(id);
+            }
+            else if (!string.IsNullOrEmpty(import))
+            {
+                var json = System.Text.Encoding.UTF8.GetString(
+                    Convert.FromBase64String(Uri.UnescapeDataString(import))
+                );
+                quiz = new QuizCreatorModel(json);
+            }
+            else
+            {
+                quiz = new QuizCreatorModel();
+            }
+
+            return View(quiz);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

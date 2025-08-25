@@ -14,7 +14,5 @@ namespace Quizzy.Core.Services
         public void GenerateQuiz();
         public void UpdateQuiz();
         public void DeleteQuiz();
-        public void ImportQuizFromJson(string json);
-        public string ExportQuizToJson(Quiz quiz, string? email = null);
     }
 }

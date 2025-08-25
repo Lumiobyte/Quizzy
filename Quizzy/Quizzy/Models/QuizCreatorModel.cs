@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 
 namespace Quizzy.Models
 {
@@ -6,7 +7,7 @@ namespace Quizzy.Models
     {
         public QuizCreatorModel() { }
 
-        public QuizCreatorModel(int id = -1)
+        public QuizCreatorModel(int id)
         {
             QuizSourceId = id;
             if (id > 0)
@@ -15,20 +16,40 @@ namespace Quizzy.Models
             }
         }
 
-        public string Title { get; set; } = string.Empty;
-        public List<QuestionModel> Questions { get; set; } = new();
-        public int QuizSourceId { get; set; } // If not null, this quiz is a copy of another quiz and can be saved as or updated
-
-        public struct QuestionModel
+        public QuizCreatorModel(string json)
         {
-            public string Text;
-            public List<AnswerModel> Answers;
+            QuizSourceId = -1;
+            try
+            {
+                var model = JsonSerializer.Deserialize<QuizCreatorModel>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (model != null)
+                {
+                    Title = model.Title;
+                    Questions = model.Questions;
+                    QuizSourceId = model.QuizSourceId;
+                }
+            }
+            catch
+            {
+                Title = string.Empty;
+                Questions = new();
+            }
         }
 
-        public struct AnswerModel
+        public string Title { get; set; } = string.Empty;
+        public List<QuestionModel> Questions { get; set; } = new();
+        public int QuizSourceId { get; set; } = -1; // If not null, this quiz is a copy of another quiz and can be saved as or updated
+
+        public class QuestionModel
         {
-            public string Text;
-            public bool IsCorrect;
+            public string Text { get; set; }
+            public List<AnswerModel> Answers { get; set; }
+        }
+
+        public class AnswerModel
+        {
+            public string Text { get; set; }
+            public bool IsCorrect { get; set; }
         }
     }
 }
