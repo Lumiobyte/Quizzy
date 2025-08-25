@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,11 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Quizzy.Core\Quizzy.Core.csproj" />
+    <Compile Remove="Views\Quiz\**" />
+    <Content Remove="Views\Quiz\**" />
+    <EmbeddedResource Remove="Views\Quiz\**" />
+    <None Remove="Views\Quiz\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Views\Quiz\" />
+    <ProjectReference Include="..\Quizzy.Core\Quizzy.Core.csproj" />
   </ItemGroup>
 
 </Project>

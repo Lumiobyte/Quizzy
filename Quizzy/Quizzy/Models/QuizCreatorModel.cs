@@ -4,24 +4,20 @@ namespace Quizzy.Models
 {
     public class QuizCreatorModel
     {
-        public string SaveQuiz(bool createNew)
+        public QuizCreatorModel() { }
+
+        public QuizCreatorModel(int id = -1)
         {
-            if (createNew)
+            QuizSourceId = id;
+            if (id > 0)
             {
-                int newId = 0;
-                // int newId = QuizCreationService.Instance.GenerateQuiz();
-                if (!QuizSourceId.HasValue) QuizSourceId = newId;
+                // Get data from db
             }
-            else
-            {
-                //QuizCreationService.Instance.UpdateQuiz(QuizSourceId);
-            }
-            return "Quiz saved to your account successfully";
         }
 
         public string Title { get; set; } = string.Empty;
         public List<QuestionModel> Questions { get; set; } = new();
-        public int? QuizSourceId { get; set; } = null; // If not null, this quiz is a copy of another quiz and can be saved as or updated
+        public int QuizSourceId { get; set; } // If not null, this quiz is a copy of another quiz and can be saved as or updated
 
         public struct QuestionModel
         {
