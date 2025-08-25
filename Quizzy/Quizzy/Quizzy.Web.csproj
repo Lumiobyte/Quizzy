@@ -7,10 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Views\Quiz\**" />
-    <Content Remove="Views\Quiz\**" />
-    <EmbeddedResource Remove="Views\Quiz\**" />
-    <None Remove="Views\Quiz\**" />
+    <None Include="wwwroot\js\utils.js" />
   </ItemGroup>
 
   <ItemGroup>
