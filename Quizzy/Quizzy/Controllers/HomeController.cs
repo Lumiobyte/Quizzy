@@ -28,6 +28,11 @@ namespace Quizzy.Controllers
             return View();
         }
 
+        public IActionResult Register()
+        {
+            return View();
+        }
+
         public IActionResult CreateQuiz()
         {
             return View(new QuizCreatorController());
