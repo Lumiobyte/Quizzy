@@ -6,24 +6,42 @@
     <h1 class="display-4">Welcome to Quizzy!</h1>
     <p>We are definitely not a ripoff of Kahoot!</p>
 
-    <div id="user options"></div>
+    <div id="user-options" class="user-options"></div>
 </div>
 
-<script>
-    if (localStorage.getItem("userId")) {
-        document.getElementById("user options").innerHTML = `
-            <a class="btn btn-primary" href="/Quiz/Join">Join a Quiz</a>
-            <a class="btn btn-secondary" href="/Quiz/Create">Create a Quiz</a>
-            <a class="btn btn-danger" href="#" id="logoutButton">Logout</a>
+<script type="module">
+    import { GetFromLocalStorage, localStorageKeys, SetLocalStorage } from '/js/utils.js';
+
+    if (GetFromLocalStorage(localStorageKeys.UserId)) { // Join quiz is lockled behind an account atm. To move it to front page, you can put it in either or hardcode the html
+        document.getElementById("user-options").innerHTML = ` 
+            <a class="btn text-dark btn-primary nav-link" href="/Home/Join">Join a Quiz</a>
+            <a class="btn text-dark btn-primary nav-link" href="/Home/CreateQuiz">Create a Quiz</a>
+            <a class="btn text-dark btn-danger" href="#" id="logoutButton">Logout</a>
         `;
         document.getElementById("logoutButton").addEventListener("click", function() {
-            localStorage.removeItem("userId");
+            SetLocalStorage(localStorageKeys.UserId, null);
             location.reload();
         });
     } else {
-        document.getElementById("user options").innerHTML = `
-            <a class="btn btn-primary" href="/Account/Login">Login</a>
-            <a class="btn btn-secondary" href="/Account/Register">Register</a>
+        document.getElementById("user-options").innerHTML = `
+            <a class="btn btn-primary text-dark nav-link" href="/Home/Login">Login</a>
+            <a class="btn btn-primary text-dark nav-link" href="/Home/Register">Register</a>
         `;
-	}
+    }
 </script>
+
+<style>
+    .user-options {
+        width: auto;
+        min-width: 0;
+        padding: 0.375rem 0.75rem;
+        margin: 0 0.25rem 0.5rem 0.25rem 0.25rem;
+        box-sizing: border-box;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .btn {
+        display: inline-block;
+    }
+</style>
