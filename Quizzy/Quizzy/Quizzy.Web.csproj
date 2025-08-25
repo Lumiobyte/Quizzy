@@ -10,4 +10,8 @@
     <None Include="wwwroot\js\utils.js" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Quizzy.Core\Quizzy.Core.csproj" />
+  </ItemGroup>
+
 </Project>

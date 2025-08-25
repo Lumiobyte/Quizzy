@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Quizzy.Models;
+using Quizzy.Core.Services;
 
 namespace Quizzy.Controllers
 {
@@ -11,9 +12,7 @@ namespace Quizzy.Controllers
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            // Get user from database
-            // Return id
-            int id = 1;
+            int id = AuthenticationService.Instance.LoginUser(request.Username, request.Password);
 
             return Ok(new {id});
         }
@@ -21,11 +20,18 @@ namespace Quizzy.Controllers
         [HttpPost("register")]
         public IActionResult Register([FromBody] RegisterRequest request)
         {
-            // Validate creds
-            // Create user
+            string message = "uh oh";
             int? id = null;
+            try
+            {
+                id = AuthenticationService.Instance.CreateNewUser(request.Username, request.Password, request.Email);
+            }
+            catch (ArgumentException ex)
+            {
+                message = ex.Message;
+            }
 
-            return Ok(new { id, message="failed!!!" });
+            return Ok(new { id, message });
         }
     }
 

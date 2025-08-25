@@ -9,7 +9,7 @@ namespace Quizzy.Core.Services
 {
     public interface IQuizCreationService // Mostly acting as a stub
     {
-        public IQuizCreationService Instance { get; set; }
+        public static IQuizCreationService Instance { get; set; }
 
         public void GenerateQuiz();
         public void UpdateQuiz();

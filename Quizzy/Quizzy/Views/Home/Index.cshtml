@@ -5,4 +5,25 @@
 <div class="text-center">
     <h1 class="display-4">Welcome to Quizzy!</h1>
     <p>We are definitely not a ripoff of Kahoot!</p>
+
+    <div id="user options"></div>
 </div>
+
+<script>
+    if (localStorage.getItem("userId")) {
+        document.getElementById("user options").innerHTML = `
+            <a class="btn btn-primary" href="/Quiz/Join">Join a Quiz</a>
+            <a class="btn btn-secondary" href="/Quiz/Create">Create a Quiz</a>
+            <a class="btn btn-danger" href="#" id="logoutButton">Logout</a>
+        `;
+        document.getElementById("logoutButton").addEventListener("click", function() {
+            localStorage.removeItem("userId");
+            location.reload();
+        });
+    } else {
+        document.getElementById("user options").innerHTML = `
+            <a class="btn btn-primary" href="/Account/Login">Login</a>
+            <a class="btn btn-secondary" href="/Account/Register">Register</a>
+        `;
+	}
+</script>

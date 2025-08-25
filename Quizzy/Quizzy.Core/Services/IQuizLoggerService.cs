@@ -9,7 +9,7 @@ namespace Quizzy.Core.Services
 {
     public interface IQuizLoggerService
     {
-        IQuizLoggerService Instance { get; set; }
+        public static IQuizLoggerService Instance { get; set; }
 
         public void LogAnswer(QuizSession session, PlayerAnswer playerAnswer);
         public LogInfo[] RetrieveLogs(QuizSession session);
