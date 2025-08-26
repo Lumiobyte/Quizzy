@@ -15,7 +15,7 @@ namespace Quizzy.Core.Repositories
         Task AddAsync(T entity);
         void Update(T entity);
         void Remove(T entity);
-        void Remove(Guid id);
+        Task Remove(Guid id);
     }
 
 }
