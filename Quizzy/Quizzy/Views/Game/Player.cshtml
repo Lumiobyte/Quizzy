@@ -1,0 +1,40 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quizzy Player";
+}
+@* <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picocss/pico@2/css/pico.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script defer src="/js/quizzy.js"></script> *@
+
+<main class="container">
+    <h1>Join Game</h1>
+    <form id="joinForm">
+        <label>Room ID <input id="pRoom" value="QUIZ" required /></label>
+        <label>Name <input id="pName" placeholder="Your name" required /></label>
+        <button type="submit" class="btn btn-primary">Join</button>
+    </form>
+
+    <article id="playArea" style="display:none">
+        <h2 id="pStatus">Waiting for question…</h2>
+        <div id="pQuestion" style="display:none">
+            <h3 id="pQText">—</h3>
+            <div id="pOptions" class="options"></div>
+            <p><strong>Time left:</strong> <span id="pTimer">0</span>s</p>
+        </div>
+
+        <div id="pUpcoming" style="display:none">
+            <p><strong>Next starts in:</strong> <span id="pNextIn">0</span>s</p>
+            <h4 id="pNextQ">—</h4>
+            <ol id="pNextOpts"></ol>
+        </div>
+
+        <p><strong>Answered:</strong> <span id="pAnswered">No</span></p>
+        <p><strong>Your score:</strong> <span id="pScore">0</span></p>
+        <p><strong>Your place:</strong> <span id="pPlace">—</span></p>
+    </article>
+</main>
+
+<style>
+.options { display:grid; grid-template-columns: 1fr; gap: .75rem; }
+button.big { font-size:1.25rem; }
+</style>

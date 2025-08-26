@@ -1,0 +1,60 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quizzy Host";
+}
+@* <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picocss/pico@2/css/pico.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script defer src="/js/quizzy.js"></script> *@
+
+<main class="container">
+    <h1>Host Console</h1>
+    <form id="hostForm">
+        <label>Room ID <input id="roomId" value="QUIZ" required /></label>
+        <button type="submit" class="btn btn-primary">Claim Host</button>
+    </form>
+
+    <article>
+        <h2>Compose Question</h2>
+        <div class="grid">
+            <label>Question <input id="qText" placeholder="e.g. What is 2 + 2?" /></label>
+            <label>Duration (s) <input type="number" id="qDur" value="20" min="5" max="120" /></label>
+            <label>Next starts in (s) <input type="number" id="qIn" value="10" min="3" max="120" /></label>
+        </div>
+        <div class="grid">
+            <input class="opt" placeholder="Option A" />
+            <input class="opt" placeholder="Option B" />
+            <input class="opt" placeholder="Option C" />
+            <input class="opt" placeholder="Option D" />
+        </div>
+        <label>Correct Option Index (0‑based) <input type="number" id="qCorrect" value="0" min="0" max="3" /></label>
+        <div class="mt-2">
+            <button id="startNowBtn" disabled>Start Now</button>
+            <button id="scheduleBtn" disabled class="secondary">Schedule Next</button>
+            <button id="endBtn" disabled class="contrast">End Question</button>
+        </div>
+    </article>
+
+    <article>
+        <h2>Live</h2>
+        <p><strong>Room:</strong> <span id="roomLabel">—</span>
+           <strong>Players:</strong> <span id="playerCount">0</span></p>
+        <p><strong>Status:</strong> <span id="status">Waiting…</span></p>
+        <div class="grid">
+            <div>
+                <div id="questionArea" style="display:none">
+                    <h3 id="liveQ">—</h3>
+                    <ol id="liveOptions"></ol>
+                </div>
+                <div id="resultsArea" style="display:none"></div>
+            </div>
+            <div>
+                <div><strong>Timer:</strong> <span id="timer">0</span>s</div>
+                <div id="upcomingArea" style="display:none">
+                    <p><strong>Next starts at:</strong> <span id="nextAt">—</span></p>
+                    <h4 id="nextQ">—</h4>
+                    <ol id="nextOpts"></ol>
+                </div>
+            </div>
+        </div>
+    </article>
+</main>

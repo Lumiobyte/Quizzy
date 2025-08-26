@@ -12,6 +12,7 @@ namespace Quizzy
             // Add services to the container.
             builder.Services.AddControllersWithViews();
             builder.Services.AddSignalR();
+            builder.Services.AddSingleton<Quizzy.Web.Services.GameService>();
             builder.Services.AddServerSideBlazor();
             builder.Services.AddRazorPages();
             builder.Services.AddResponseCompression(options =>
@@ -42,8 +43,12 @@ namespace Quizzy
                 pattern: "{controller=Home}/{action=Index}/{id?}");
 
             app.MapBlazorHub();
+            app.MapHub<GameHub>("/gamehub");
             app.MapHub<UserHub>("/userhub");
-            app.MapFallbackToPage("/Home/Login");
+            app.MapControllerRoute(
+                name: "default",
+                pattern: "{controller=Home}/{action=Index}/{id?}"
+            );
 
             app.Run();
         }
