@@ -9,8 +9,8 @@ namespace Quizzy.Core.Services
 {
     public class QuizLoggerService : IQuizLoggerService
     {
-        IQuizLoggerService? instance = null;
-        public IQuizLoggerService Instance { 
+        static IQuizLoggerService? instance = null;
+        public static IQuizLoggerService Instance { 
             get
             {
                 if (instance == null) instance = new QuizLoggerService();

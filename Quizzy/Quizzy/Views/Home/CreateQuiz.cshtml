@@ -1,13 +1,250 @@
-﻿@{
-    ViewData["Title"] = "Quiz Creator";
-}
-<h1>@ViewData["Title"]</h1>
+﻿@model Quizzy.Models.QuizCreatorModel
 
-<div class="text-center">
-    <p>text!</p>
+<button type="button" id="importJsonBtn">Import from JSON</button>
+<input type="file" id="importJsonInput" accept=".json,application/json" style="display:none;" />
+<br />
+<label for="Title">Quiz Title:</label>
+<input type="text" id="Title" name="Title" value="@Model.Title" />
+<br />
+<br />
 
-    @if (Model.exists)
+<div id="questionsContainer">
+    @for (int i = 0; i < Model.Questions.Count; i++)
     {
-        <p>Model exists</p>
+        <div class="question-block" style="position:relative;">
+            <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
+            <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
+            <div class="answers" id="answers-@i">
+                @for (int j = 0; j < Model.Questions[i].Answers.Count; j++)
+                {
+                    <div style="position:relative;">
+                        <button type="button" class="remove-answer-btn" onclick="removeAnswer(this)" title="Remove Answer">&times;</button>
+                        <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" oninput="updateSaveButtonState()" />
+                        <label>
+                            <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" oninput="updateSaveButtonState()" />
+                            Correct
+                        </label>
+                        <br />
+                    </div>
+                }
+            </div>
+            <button type="button" onclick="addAnswer(@i)">Add Answer</button><br /><br />
+        </div>
     }
 </div>
+
+<button type="button" onclick="addQuestion()">Add Question</button>
+<br />
+<br />
+@* Patapim *@
+<div class="save-options">
+    @if (Model.QuizSourceId > 0)
+    {
+        <button id="updateBtn" type="submit" onclick="saveQuiz(false)">Update Quiz</button>
+    }
+    <button id="createBtn" type="submit" onclick="saveQuiz(true)">Save as New Quiz</button>
+    <button id="exportJsonBtn" onclick="downloadJSON()">Download as JSON</button>
+</div>
+
+<script>
+    let questionCount = @Model.Questions.Count;
+    let answerCounts = [];
+    @for (int i = 0; i < Model.Questions.Count; i++)
+    {
+        <text>answerCounts[@i] = @Model.Questions[i].Answers.Count;</text>
+    }
+	updateSaveButtonState();
+
+    function updateSaveButtonState() {
+        const createBtn = document.getElementById("createBtn");
+        const jsonBtn = document.getElementById("exportJsonBtn");
+        const updateBtn = document.getElementById("updateBtn");
+        if (isQuizValid()) {
+            createBtn.removeAttribute("disabled");
+            jsonBtn.removeAttribute("disabled");
+            if (updateBtn !== null) updateBtn.removeAttribute("disabled");
+        }
+        else {
+            createBtn.setAttribute("disabled", "disabled");
+            jsonBtn.setAttribute("disabled", "disabled");
+            if (updateBtn !== null) updateBtn.setAttribute("disabled", "disabled");
+        }
+	}
+
+    function addQuestion() {
+        const container = document.getElementById("questionsContainer");
+        const qIdx = questionCount;
+        answerCounts[qIdx] = 0;
+
+        const questionDiv = document.createElement("div");
+        questionDiv.className = "question-block";
+        questionDiv.style.position = "relative";
+        questionDiv.innerHTML = `
+            <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
+            <input type="text" name="Questions[${qIdx}].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
+            <div class="answers" id="answers-${qIdx}"></div>
+            <button type="button" onclick="addAnswer(${qIdx})">Add Answer</button><br /><br />
+        `;
+        container.appendChild(questionDiv);
+        questionCount++;
+        updateSaveButtonState();
+    }
+
+    function addAnswer(questionId) {
+        if (typeof answerCounts[questionId] === "undefined") answerCounts[questionId] = 0;
+        const answersDiv = document.getElementById(`answers-${questionId}`);
+        const aIdx = answerCounts[questionId];
+
+        const answerDiv = document.createElement("div");
+        answerDiv.style.position = "relative";
+        answerDiv.innerHTML = `
+            <button type="button" class="remove-answer-btn" onclick="removeAnswer(this)" title="Remove Answer">&times;</button>
+            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text"  oninput="updateSaveButtonState()" />
+            <label>
+                <input type="checkbox" name="Questions[${questionId}].Answers[${aIdx}].IsCorrect" value="true" class="answer-correct"  oninput="updateSaveButtonState()" />
+                Correct
+            </label><br />
+        `;
+        answersDiv.appendChild(answerDiv);
+        answerCounts[questionId]++;
+        updateSaveButtonState();
+    }
+
+    function saveQuiz(createNew) {
+        if (isQuizValid()) {
+            const quizData = getQuizDataFromPage();
+            quizData.createNew = createNew;
+
+            fetch('/QuizCreator/Create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(quizData)
+            })
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Network response was not ok.');
+            })
+            .then(data => { alert('Quiz saved successfully!'); })
+            .catch(error => { alert('Error saving quiz: ' + error.message); });
+        }
+        else alert("There are errors in the quiz. Please fix these before saving.")
+    }
+
+    function getQuizDataFromPage() {
+        const quiz = {
+            title: document.getElementById('Title').value,
+            questions: []
+        };
+        const questionBlocks = document.querySelectorAll('.question-block');
+        questionBlocks.forEach(qBlock => {
+            const qText = qBlock.querySelector('.question-text').value;
+            const answers = [];
+            const answerTexts = qBlock.querySelectorAll('.answer-text');
+            const answerChecks = qBlock.querySelectorAll('.answer-correct');
+            answerTexts.forEach((aText, idx) => {
+                answers.push({
+                    text: aText.value,
+                    isCorrect: answerChecks[idx].checked
+                });
+            });
+            quiz.questions.push({
+                text: qText,
+                answers: answers
+            });
+        });
+        return quiz;
+    }
+
+    function isQuizValid() {
+        const questions = document.querySelectorAll(".question-block");
+        if (questions.length === 0) return false;
+        for (let q of questions) {
+            if (q.querySelector(".question-text").value.trim() === "") return false;
+
+            const answers = q.querySelectorAll(".answer-text");
+            if (answers.length < 2) return false;
+
+            let hasCorrect = false;
+            for (let i = 0; i < answers.length; i++) {
+                const answerText = answers[i].value.trim();
+                const isCorrect = q.querySelectorAll(".answer-correct")[i].checked;
+                if (answerText === "") return false;createBtn
+                if (isCorrect) hasCorrect = true;
+            }
+            if (!hasCorrect) return false;
+        }
+        return true;
+	}
+
+    function removeQuestion(btn) {
+        const questionBlock = btn.closest('.question-block');
+        questionBlock.remove();
+        updateSaveButtonState();
+    }
+
+    function removeAnswer(btn) {
+        const answerDiv = btn.parentElement;
+        answerDiv.remove();
+        updateSaveButtonState();
+    }
+
+    function downloadJSON() {
+        const quizData = getQuizDataFromPage();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quizData, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", (quizData.title || "quiz") + ".json");
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
+
+    document.getElementById("importJsonBtn").addEventListener("click", function() {
+        document.getElementById("importJsonInput").click();
+    });
+
+    document.getElementById("importJsonInput").addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const json = e.target.result;
+            const encoded = encodeURIComponent(btoa(json));
+            window.location.href = `/Home/CreateQuiz?import=${encoded}`;
+        };
+        reader.readAsText(file);
+    });
+</script>
+
+<style>
+    .remove-question-btn, .remove-answer-btn {
+        position: absolute;
+        left: -32px;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        background: #e74c3c;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        z-index: 2;
+        transition: background 0.2s;
+    }
+
+    .remove-question-btn:hover, .remove-answer-btn:hover {
+        background: #c0392b;
+    }
+
+    .question-block, .answers > div {
+        position: relative;
+        padding-left: 36px;
+    }
+    .save-options {
+        display: inline-block;
+        margin-right: 10px;
+    }
+</style>

@@ -9,8 +9,8 @@ namespace Quizzy.Core.Services
 {
     public class QuizCreationService : IQuizCreationService
     {
-        IQuizCreationService? instance = null;
-        public IQuizCreationService Instance
+        static IQuizCreationService? instance = null;
+        public static IQuizCreationService Instance
         {
             get
             {
@@ -27,21 +27,15 @@ namespace Quizzy.Core.Services
         {
 
         }
+
         public void UpdateQuiz()
         {
 
         }
+
         public void DeleteQuiz()
         {
 
-        }
-        public void ImportQuizFromJson(string json)
-        {
-
-        }
-        public string ExportQuizToJson(Quiz quiz, string? email = null)
-        {
-            return "crazy json fr";
         }
     }
 }

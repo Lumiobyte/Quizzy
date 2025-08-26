@@ -9,8 +9,8 @@ namespace Quizzy.Core.Services
 {
     public class ReportingService : IReportingService
     {
-        IReportingService? instance = null;
-        public IReportingService Instance
+        static IReportingService? instance = null;
+        public static IReportingService Instance
         {
             get
             {
