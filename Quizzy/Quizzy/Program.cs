@@ -1,3 +1,6 @@
+using Quizzy.Core;
+using Quizzy.Core.Repositories;
+
 using Microsoft.AspNetCore.ResponseCompression;
 using Quizzy.Web.Hubs;
 
@@ -20,6 +23,10 @@ namespace Quizzy
                 options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
                     new[] { "application/octet-stream"});
             });
+
+            // DI Services
+            builder.Services.AddDbContext<QuizzyDbContext>();
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             var app = builder.Build();
 

@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Quizzy.Core.Entities
+﻿namespace Quizzy.Core.Entities
 {
     public class UserAccount
     {
 
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         public string Username { get; set; }
         public string Password { get; set; }

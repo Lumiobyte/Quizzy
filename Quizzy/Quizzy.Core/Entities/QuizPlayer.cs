@@ -1,21 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Quizzy.Core.Entities
+﻿namespace Quizzy.Core.Entities
 {
     public class QuizPlayer
     {
 
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; }
 
-        public int UserAccountId { get; set; }
+        public Guid UserAccountId { get; set; }
         public UserAccount UserAccount { get; set; }
 
-        public int QuizSessionId { get; set; }
+        public Guid QuizSessionId { get; set; }
         public QuizSession QuizSession { get; set; }
 
         public ICollection<QuizAnswer> Answers { get; set; } = new List<QuizAnswer>();
