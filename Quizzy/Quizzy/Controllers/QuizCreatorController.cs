@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Quizzy.Models;
 
 namespace Quizzy.Controllers
 {

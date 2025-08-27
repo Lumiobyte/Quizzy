@@ -1,3 +1,6 @@
+using Quizzy.Core;
+using Quizzy.Core.Repositories;
+
 namespace Quizzy
 {
     public class Program
@@ -8,6 +11,10 @@ namespace Quizzy
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
+
+            // DI Services
+            builder.Services.AddDbContext<QuizzyDbContext>();
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             var app = builder.Build();
 
