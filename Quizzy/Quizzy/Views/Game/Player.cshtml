@@ -2,16 +2,15 @@
     Layout = "_Layout";
     ViewData["Title"] = "Quizzy Player";
 }
-@* <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/picocss/pico@2/css/pico.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-<script defer src="/js/quizzy.js"></script> *@
+<script defer src="/js/quizzy.js"></script>
 
 <main class="container">
     <h1>Join Game</h1>
     <form id="joinForm">
         <label>Room ID <input id="pRoom" value="QUIZ" required /></label>
         <label>Name <input id="pName" placeholder="Your name" required /></label>
-        <button type="submit" class="btn btn-primary">Join</button>
+        <button type="submit" class="btn btn-primary" onclick=" ">Join</button>
     </form>
 
     <article id="playArea" style="display:none">

@@ -9,9 +9,9 @@ namespace Quizzy.Core.Entities
     public class LogInfo
     {
 
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public int PlayerAnswerId { get; set; }
+        public Guid PlayerAnswerId { get; set; }
         public PlayerAnswer PlayerAnswer { get; set; }
 
         public int TimeTaken { get; set; }
