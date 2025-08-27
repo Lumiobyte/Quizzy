@@ -1,77 +1,49 @@
 @{
     Layout = "_Layout";
-    var pin = (string)(ViewData["Pin"] ?? "");
     ViewData["Title"] = "Quizzy Player";
 }
 <main class="container">
-    <h1>Quiz Lobby</h1>
-    <div class="alert alert-info">
-        <strong>Room Code:</strong>
-        <span id="roomPin">@pin</span>
-        <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
-        <div class="small text-muted">Players join via <code>/Player</code> and enter this code.</div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-6">
-            <h4>Players Joined (<span id="playerCount">0</span>)</h4>
-            <ul id="playerList" class="list-group"></ul>
+    <h1>Join a Quiz</h1>
+    <form id="joinForm" class="mb-3">
+        <div class="row g-2">
+            <div class="col-sm-4"><input id="pRoom" class="form-control" placeholder="Room Code (e.g., ABC123)" required /></div>
+            <div class="col-sm-4"><input id="pName" class="form-control" placeholder="Your Name" required /></div>
+            <div class="col-sm-4"><button type="submit" class="btn btn-primary w-100">Join</button></div>
         </div>
-        <div class="col-md-6">
-            <h4>Controls</h4>
-            <div class="d-flex gap-2 mb-3">
-                <button id="startNowBtn" class="btn btn-primary" disabled>Start Next Question Now</button>
-                <button id="scheduleBtn" class="btn btn-outline-secondary" disabled>Schedule in 5s</button>
+        <div id="joinStatus" class="form-text"></div>
+    </form>
+
+    <div id="playArea" style="display:none;">
+        <div class="row">
+            <div class="col-md-6">
+                <div id="pStatus" class="mb-2 text-muted">Waiting…</div>
+                <section id="pQuestion" style="display:none;">
+                    <h3 id="pQText"></h3>
+                    <div id="pOptions" class="d-grid gap-2"></div>
+                    <div class="mt-2">Answered: <span id="pAnswered">No</span></div>
+                </section>
+                <section id="pUpcoming" style="display:none;">
+                    <div class="alert alert-info">
+                        <div>Next question in <span id="pNextIn">0</span>s</div>
+                        <div id="pNextQ" class="fw-bold"></div>
+                        <ul id="pNextOpts"></ul>
+                    </div>
+                </section>
             </div>
-            <div id="status" class="text-muted">Waiting for players…</div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <div>Timer: <span id="pTimer">0</span>s</div>
+                        <div>Score: <span id="pScore">0</span></div>
+                        <div>Place: <span id="pPlace">-</span></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-<script>
-    (function(){
-      const pin = document.getElementById('roomPin').textContent.trim();
-      const copyBtn = document.getElementById('copyPin');
-      const playerList = document.getElementById('playerList');
-      const playerCount = document.getElementById('playerCount');
-      const statusEl = document.getElementById('status');
-      const startNowBtn = document.getElementById('startNowBtn');
-      const scheduleBtn = document.getElementById('scheduleBtn');
-
-      copyBtn.addEventListener('click', async ()=>{
-        await navigator.clipboard.writeText(pin);
-        copyBtn.textContent='Copied!';
-        setTimeout(()=>copyBtn.textContent='Copy', 1200);
-      });
-
-      const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-      conn.on('RoomStateUpdated', (state)=>{
-        playerCount.textContent = state.players.length;
-        playerList.innerHTML = '';
-        (state.players||[]).forEach(p => {
-          const li = document.createElement('li');
-          li.className='list-group-item d-flex justify-content-between align-items-center';
-          li.textContent = p.name;
-          const badge = document.createElement('span');
-          badge.className = 'badge bg-secondary rounded-pill';
-          badge.textContent = p.score ?? 0;
-          li.appendChild(badge);
-          playerList.appendChild(li);
-        });
-        statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
-        startNowBtn.disabled = false; scheduleBtn.disabled = false;
-      });
-
-      conn.start().then(async ()=>{
-        await conn.invoke('ClaimHost', pin);
-      }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
-
-      startNowBtn.addEventListener('click', async ()=>{
-        await conn.invoke('StartNextQuestionNow', pin);
-      });
-      scheduleBtn.addEventListener('click', async ()=>{
-        await conn.invoke('ScheduleNextQuestion', pin, 5);
-      });
-    })();
-</script>
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script defer src="/js/quizzy.js"></script>
+}

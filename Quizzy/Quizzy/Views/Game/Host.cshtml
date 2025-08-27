@@ -1,77 +1,61 @@
 @{
     Layout = "_Layout";
-    var pin = (string)(ViewData["Pin"] ?? "");
     ViewData["Title"] = "Quizzy Host";
 }
 <main class="container">
-    <h1>Quiz Lobby</h1>
-    <div class="alert alert-info">
-        <strong>Room Code:</strong>
-        <span id="roomPin">@pin</span>
-        <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
-        <div class="small text-muted">Players join via <code>/Player</code> and enter this code.</div>
-    </div>
+    <h1>Host Console</h1>
+    <p class="text-muted">Create a new session to get a fresh Room Code, or claim an existing code.</p>
 
     <div class="row">
         <div class="col-md-6">
-            <h4>Players Joined (<span id="playerCount">0</span>)</h4>
-            <ul id="playerList" class="list-group"></ul>
+            <h4>Create New Session</h4>
+            <button id="createSessionBtn" class="btn btn-success">Create &amp; Claim New Session</button>
         </div>
         <div class="col-md-6">
-            <h4>Controls</h4>
-            <div class="d-flex gap-2 mb-3">
-                <button id="startNowBtn" class="btn btn-primary" disabled>Start Next Question Now</button>
-                <button id="scheduleBtn" class="btn btn-outline-secondary" disabled>Schedule in 5s</button>
-            </div>
-            <div id="status" class="text-muted">Waiting for players…</div>
+            <h4>Claim Existing Session</h4>
+            <form id="claimForm" class="d-flex gap-2">
+                <input id="hostRoom" class="form-control" placeholder="Enter Room Code (e.g., QUIZ12)" required />
+                <button class="btn btn-primary" type="submit">Claim Host</button>
+            </form>
         </div>
     </div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-<script>
-    (function(){
-      const pin = document.getElementById('roomPin').textContent.trim();
-      const copyBtn = document.getElementById('copyPin');
-      const playerList = document.getElementById('playerList');
-      const playerCount = document.getElementById('playerCount');
-      const statusEl = document.getElementById('status');
-      const startNowBtn = document.getElementById('startNowBtn');
-      const scheduleBtn = document.getElementById('scheduleBtn');
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script>
+        (function(){
+          const createBtn = document.getElementById('createSessionBtn');
+          const claimForm = document.getElementById('claimForm');
+          let conn = null;
 
-      copyBtn.addEventListener('click', async ()=>{
-        await navigator.clipboard.writeText(pin);
-        copyBtn.textContent='Copied!';
-        setTimeout(()=>copyBtn.textContent='Copy', 1200);
-      });
+          async function ensureConn(){
+            if(!conn){
+              conn = new signalR.HubConnectionBuilder().withUrl('/gamehub').withAutomaticReconnect().build();
+              await conn.start();
+            }
+          }
 
-      const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-      conn.on('RoomStateUpdated', (state)=>{
-        playerCount.textContent = state.players.length;
-        playerList.innerHTML = '';
-        (state.players||[]).forEach(p => {
-          const li = document.createElement('li');
-          li.className='list-group-item d-flex justify-content-between align-items-center';
-          li.textContent = p.name;
-          const badge = document.createElement('span');
-          badge.className = 'badge bg-secondary rounded-pill';
-          badge.textContent = p.score ?? 0;
-          li.appendChild(badge);
-          playerList.appendChild(li);
-        });
-        statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
-        startNowBtn.disabled = false; scheduleBtn.disabled = false;
-      });
+          createBtn?.addEventListener('click', async ()=>{
+            try{
+              createBtn.disabled = true;
+              await ensureConn();
+              const pin = await conn.invoke('CreateAndClaimSession');
+              window.location.href = '/Host/Lobby?pin=' + encodeURIComponent(pin);
+            }catch(err){
+              alert('Failed to create session: ' + (err?.message||err));
+              createBtn.disabled = false;
+            }
+          });
 
-      conn.start().then(async ()=>{
-        await conn.invoke('ClaimHost', pin);
-      }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
-
-      startNowBtn.addEventListener('click', async ()=>{
-        await conn.invoke('StartNextQuestionNow', pin);
-      });
-      scheduleBtn.addEventListener('click', async ()=>{
-        await conn.invoke('ScheduleNextQuestion', pin, 5);
-      });
-    })();
-</script>
+          claimForm?.addEventListener('submit', async (e)=>{
+            e.preventDefault();
+            const pin = document.getElementById('hostRoom').value.trim().toUpperCase();
+            if(!pin) return;
+            await ensureConn();
+            await conn.invoke('ClaimHost', pin);
+            window.location.href = '/Host/Lobby?pin=' + encodeURIComponent(pin);
+          });
+        })();
+    </script>
+}

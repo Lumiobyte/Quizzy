@@ -95,6 +95,29 @@ namespace Quizzy.Web.Hubs
         }
 
         // ---------------- HOST FLOW ----------------
+        public async Task<string> CreateAndClaimSession()
+        {
+            string pin;
+            int attempts = 0;
+            do
+            {
+                pin = GeneratePin(6);
+                attempts++;
+            } while ((await _unitOfWork.QuizSessions.FindAsync(s => s.GamePin == pin)).Any() && attempts < 20);
+
+            var rt = _sessions.GetOrCreate(pin, () => EnsureSessionForPin(pin));
+            rt.ClaimHost(Context.ConnectionId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, pin);
+            await BroadcastRoomState(pin, rt);
+            return pin;
+        }
+
+        private static string GeneratePin(int len)
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var r = Random.Shared;
+            return new string(Enumerable.Range(0, len).Select(_ => chars[r.Next(chars.Length)]).ToArray());
+        }
 
         public async Task ClaimHost(string gamePin)
         {

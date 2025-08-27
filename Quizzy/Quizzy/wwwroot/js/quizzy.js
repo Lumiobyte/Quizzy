@@ -1,229 +1,348 @@
-function createConnection() {
-  return new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-}
+/* 
+ * Quizzy client script
+ * - Host UI (legacy host page) and Player UI 
+ * - Shared SignalR connection factory + small DOM helpers
+ * - Clean rendering functions and timer management
+ *
+ * NOTE: This preserves existing server API calls and event names.
+ *  - Server events listened:   "RoomStateUpdated", "QuestionEnded"
+ *  - Server methods invoked:   Host: ClaimHost, StartQuestionNow, ScheduleNextQuestion, EndQuestion
+ *                               Player: JoinAsPlayer, SubmitAnswer
+ *
+ * If you are using the new Host Lobby (/Host/Lobby), its inline script handles host actions there.
+ * The host section below supports the original host page with a form + controls.
+ */
 
-// Shared timer utilities
-function secondsRemainingFromUtc(startUtc, durationSeconds) {
-  if(!startUtc) return 0;
-  const start = new Date(startUtc);
-  const elapsed = (Date.now() - start.getTime())/1000;
-  return Math.max(0, Math.floor(durationSeconds - elapsed));
-}
+(() => {
+    "use strict";
 
-function secondsUntilUtc(targetUtc) {
-  if(!targetUtc) return 0;
-  const target = new Date(targetUtc);
-  const diff = (target.getTime() - Date.now())/1000;
-  return Math.max(0, Math.floor(diff));
-}
+    // ---------------- Shared: SignalR connection + helpers ----------------
 
-// ---------------- HOST ----------------
-(function hostScope(){
-  const form = document.getElementById('hostForm');
-  if(!form) return;
-
-  const roomInput = document.getElementById('roomId');
-  const roomLabel = document.getElementById('roomLabel');
-  const playerCountEl = document.getElementById('playerCount');
-  const statusEl = document.getElementById('status');
-  const timerEl = document.getElementById('timer');
-  const startNowBtn = document.getElementById('startNowBtn');
-  const scheduleBtn = document.getElementById('scheduleBtn');
-  const endBtn = document.getElementById('endBtn');
-  const qText = document.getElementById('qText');
-  const qDur = document.getElementById('qDur');
-  const qIn = document.getElementById('qIn');
-  const qCorrect = document.getElementById('qCorrect');
-  const qOpts = Array.from(document.querySelectorAll('.opt'));
-  const questionArea = document.getElementById('questionArea');
-  const liveQ = document.getElementById('liveQ');
-  const liveOptions = document.getElementById('liveOptions');
-  const resultsArea = document.getElementById('resultsArea');
-  const upcomingArea = document.getElementById('upcomingArea');
-  const nextAt = document.getElementById('nextAt');
-  const nextQ = document.getElementById('nextQ');
-  const nextOpts = document.getElementById('nextOpts');
-
-  let roomId = null;
-  let countdown = null;
-  const conn = createConnection();
-
-  function render(state){
-    roomLabel.textContent = state.roomId;
-    playerCountEl.textContent = state.players.length;
-
-    // Question live
-    if(state.question){
-      statusEl.textContent = "Question Live";
-      questionArea.style.display = '';
-      resultsArea.style.display = 'none';
-      liveQ.textContent = state.question.text;
-      liveOptions.innerHTML = '';
-      (state.question.options || []).forEach((o,i)=>{
-        const li = document.createElement('li'); li.textContent = `${i}: ${o}`; liveOptions.appendChild(li);
-      });
-      // timer
-      clearInterval(countdown);
-      countdown = setInterval(()=>{
-        timerEl.textContent = secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds);
-      }, 500);
-      startNowBtn.disabled = true; scheduleBtn.disabled = true; endBtn.disabled = false;
-    } else {
-      questionArea.style.display = 'none';
-      endBtn.disabled = true;
+    /** Create an unstarted SignalR connection to the game hub. */
+    function createConnection() {
+        return new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
     }
 
-    // Upcoming preview
-    if(state.upcoming){
-      upcomingArea.style.display = '';
-      nextAt.textContent = new Date(state.upcoming.nextQuestionStartTimeUtc).toLocaleTimeString();
-      nextQ.textContent = state.upcoming.text;
-      nextOpts.innerHTML = '';
-      (state.upcoming.options||[]).forEach((o,i)=>{
-        const li = document.createElement('li'); li.textContent = `${i}: ${o}`; nextOpts.appendChild(li);
-      });
-      if(!state.question) statusEl.textContent = "Waiting for next question…";
-      startNowBtn.disabled = false; scheduleBtn.disabled = false;
-    } else {
-      upcomingArea.style.display = 'none';
-      if(!state.question) { statusEl.textContent = "Waiting…"; startNowBtn.disabled = false; scheduleBtn.disabled = false; }
+    /** Return seconds left of a question given its UTC start and duration. */
+    function secondsRemainingFromUtc(startUtc, durationSeconds) {
+        if (!startUtc) return 0;
+        const startedAt = new Date(startUtc).getTime();
+        const elapsedSec = (Date.now() - startedAt) / 1000;
+        return Math.max(0, Math.floor(durationSeconds - elapsedSec));
     }
-  }
 
-  conn.on('RoomStateUpdated', render);
+    /** Return whole seconds until a UTC instant. */
+    function secondsUntilUtc(targetUtc) {
+        if (!targetUtc) return 0;
+        const targetMs = new Date(targetUtc).getTime();
+        return Math.max(0, Math.floor((targetMs - Date.now()) / 1000));
+    }
 
-  conn.on('QuestionEnded', summary => {
-    resultsArea.style.display = '';
-    const { correctIndex, optionCounts, leaderboard } = summary;
-    const total = (optionCounts||[]).reduce((a,b)=>a+b,0)||1;
-    const pct = optionCounts.map(c => Math.round(100*c/total));
-    resultsArea.innerHTML = `
-      <h3>Results</h3>
-      <p>Correct option: <strong>${correctIndex}</strong></p>
-      <ul>${optionCounts.map((c,i)=>`<li>Option ${i}: ${c} (${pct[i]}%)</li>`).join('')}</ul>
-      <h4>Leaderboard (Top 10)</h4>
-      <ol>${leaderboard.slice(0,10).map(l=>`<li>${l.name} — ${l.score}</li>`).join('')}</ol>
-    `;
-  });
+    // Small DOM helpers
+    const $ = (id) => document.getElementById(id);
+    const show = (el, visible) => { if (el) el.style.display = visible ? "" : "none"; };
+    const setText = (el, text) => { if (el) el.textContent = text ?? ""; };
 
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault(); roomId = roomInput.value.trim().toUpperCase();
-    await conn.start(); await conn.invoke('ClaimHost', roomId); startNowBtn.disabled = false; scheduleBtn.disabled = false;
-  });
-
-  startNowBtn?.addEventListener('click', async ()=>{
-    const text = qText.value.trim(); const options = qOpts.map(o=>o.value.trim()).filter(Boolean);
-    const correct = parseInt(qCorrect.value,10) || 0; const dur = parseInt(qDur.value,10) || 20;
-    if(!text || options.length < 2) { alert('Enter question and at least 2 options'); return; }
-    await conn.invoke('StartQuestionNow', roomId, text, options, correct, dur);
-  });
-
-  scheduleBtn?.addEventListener('click', async ()=>{
-    const text = qText.value.trim(); const options = qOpts.map(o=>o.value.trim()).filter(Boolean);
-    const correct = parseInt(qCorrect.value,10) || 0; const inSec = parseInt(qIn.value,10) || 10;
-    if(!text || options.length < 2) { alert('Enter question and at least 2 options'); return; }
-    await conn.invoke('ScheduleNextQuestion', roomId, text, options, correct, inSec);
-  });
-
-  endBtn?.addEventListener('click', async ()=>{ await conn.invoke('EndQuestion', roomId); });
-})();
-
-// ---------------- PLAYER ----------------
-(function playerScope(){
-  const form = document.getElementById('joinForm');
-  if(!form) return;
-
-  const nameInput = document.getElementById('pName');
-  const roomInput = document.getElementById('pRoom');
-  const playArea = document.getElementById('playArea');
-  const pStatus = document.getElementById('pStatus');
-  const pQText = document.getElementById('pQText');
-  const pOptions = document.getElementById('pOptions');
-  const pQuestion = document.getElementById('pQuestion');
-  const pAnswered = document.getElementById('pAnswered');
-  const pScore = document.getElementById('pScore');
-  const pPlace = document.getElementById('pPlace');
-  const pTimer = document.getElementById('pTimer');
-  const pUpcoming = document.getElementById('pUpcoming');
-  const pNextIn = document.getElementById('pNextIn');
-  const pNextQ = document.getElementById('pNextQ');
-  const pNextOpts = document.getElementById('pNextOpts');
-
-  let roomId = null;
-  let answered = false;
-  let myName = null;
-
-  const conn = createConnection();
-
-  function render(state){
-    // Leaderboard place: compute my ranking
-    const sorted = [...state.players].sort((a,b)=> b.score - a.score || a.name.localeCompare(b.name));
-    const myIndex = sorted.findIndex(p => p.name === myName);
-    if(myIndex >= 0) pPlace.textContent = `${myIndex+1}/${sorted.length}`;
-
-    if(state.question){
-      pStatus.textContent = "Answer the question!";
-      pQuestion.style.display = ''; pUpcoming.style.display = 'none';
-      pQText.textContent = state.question.text;
-      pOptions.innerHTML = '';
-      answered = state.players.find(p => p.name === myName)?.hasAnswered ?? false;
-      pAnswered.textContent = answered ? 'Yes' : 'No';
-      (state.question.options||[]).forEach((o,i)=>{
-        const btn = document.createElement('button');
-        btn.className = 'big';
-        btn.textContent = `${i}: ${o}`;
-        if(answered) btn.setAttribute('disabled','true');
-        btn.onclick = async ()=>{
-          if(answered) return;
-          answered = true; pAnswered.textContent = 'Yes';
-          Array.from(pOptions.children).forEach(b=>b.setAttribute('disabled','true'));
-          await conn.invoke('SubmitAnswer', roomId, i);
-        };
-        pOptions.appendChild(btn);
-      });
-      // timer
-      pTimer.textContent = secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds);
-      const iv = setInterval(()=>{
-        const remain = secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds);
-        pTimer.textContent = remain;
-        if(remain <= 0) clearInterval(iv);
-      }, 500);
-    } else {
-      pQuestion.style.display = 'none';
-      // Upcoming preview
-      if(state.upcoming){
-        pUpcoming.style.display = '';
-        pNextQ.textContent = state.upcoming.text;
-        pNextOpts.innerHTML = '';
-        (state.upcoming.options||[]).forEach((o,i)=>{
-          const li = document.createElement('li'); li.textContent = `${i}: ${o}`; pNextOpts.appendChild(li);
+    /** Clear and append <li> items from a string[] of options with index labels. */
+    function fillOptionList(ul, options) {
+        if (!ul) return;
+        ul.innerHTML = "";
+        (options || []).forEach((opt, i) => {
+            const li = document.createElement("li");
+            li.textContent = `${i}: ${opt}`;
+            ul.appendChild(li);
         });
-        const updateNext = ()=>{ pNextIn.textContent = secondsUntilUtc(state.upcoming.nextQuestionStartTimeUtc); };
-        updateNext();
-        const iv2 = setInterval(()=>{
-          updateNext();
-        }, 500);
-      } else {
-        pUpcoming.style.display = 'none';
-      }
-      pStatus.textContent = "Waiting…";
     }
 
-    // Update my score from state
-    const me = state.players.find(p => p.name === myName);
-    if(me) pScore.textContent = me.score;
-  }
+    /** Create a button for a player option. Disabled if already answered. */
+    function createAnswerButton(text, disabled, onClick) {
+        const btn = document.createElement("button");
+        btn.className = "big";
+        btn.textContent = text;
+        if (disabled) btn.setAttribute("disabled", "true");
+        btn.onclick = onClick;
+        return btn;
+    }
 
-  conn.on('RoomStateUpdated', render);
+    // A tiny interval manager so we don't accumulate stray timers
+    function makeTicker() {
+        let id = null;
+        return {
+            start(fn, ms) { this.stop(); id = setInterval(fn, ms); },
+            stop() { if (id) { clearInterval(id); id = null; } }
+        };
+    }
 
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    roomId = roomInput.value.trim().toUpperCase();
-    myName = nameInput.value.trim();
-    if(!roomId || !myName) return;
-    await conn.start();
-    await conn.invoke('JoinAsPlayer', roomId, myName);
-    playArea.style.display = ''; form.style.display = 'none';
-    pStatus.textContent = 'Joined — waiting for host…';
-  });
+    // =====================================================================
+    // HOST (legacy host page with form/controls)
+    // =====================================================================
+    (function hostScope() {
+        const form = $("hostForm");
+        if (!form) return; // not on host legacy page
+
+        // Inputs and labels
+        const roomInput = $("roomId");
+        const roomLabel = $("roomLabel");
+        const playerCountEl = $("playerCount");
+        const statusEl = $("status");
+        const timerEl = $("timer");
+
+        // Action buttons / inputs
+        const startNowBtn = $("startNowBtn");
+        const scheduleBtn = $("scheduleBtn");
+        const endBtn = $("endBtn");
+        const qText = $("qText");
+        const qDur = $("qDur");
+        const qIn = $("qIn");
+        const qCorrect = $("qCorrect");
+        const qOpts = Array.from(document.querySelectorAll(".opt"));
+
+        // Sections
+        const questionArea = $("questionArea");
+        const liveQ = $("liveQ");
+        const liveOptions = $("liveOptions");
+        const resultsArea = $("resultsArea");
+        const upcomingArea = $("upcomingArea");
+        const nextAt = $("nextAt");
+        const nextQ = $("nextQ");
+        const nextOpts = $("nextOpts");
+
+        // State
+        const conn = createConnection();
+        let roomId = null;
+        const questionTicker = makeTicker();
+
+        /** Render host view from server state. */
+        function render(state) {
+            // room + players
+            setText(roomLabel, state.roomId);
+            setText(playerCountEl, state.players?.length ?? 0);
+
+            // live question
+            if (state.question) {
+                setText(statusEl, "Question Live");
+                show(questionArea, true);
+                show(resultsArea, false);
+
+                setText(liveQ, state.question.text);
+                fillOptionList(liveOptions, state.question.options);
+
+                // timer
+                questionTicker.start(() => {
+                    setText(
+                        timerEl,
+                        secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds)
+                    );
+                }, 500);
+
+                if (startNowBtn) startNowBtn.disabled = true;
+                if (scheduleBtn) scheduleBtn.disabled = true;
+                if (endBtn) endBtn.disabled = false;
+            } else {
+                show(questionArea, false);
+                if (endBtn) endBtn.disabled = true;
+                questionTicker.stop();
+            }
+
+            // upcoming preview
+            if (state.upcoming) {
+                show(upcomingArea, true);
+                setText(nextAt, new Date(state.upcoming.nextQuestionStartTimeUtc).toLocaleTimeString());
+                setText(nextQ, state.upcoming.text);
+                fillOptionList(nextOpts, state.upcoming.options);
+
+                if (!state.question) setText(statusEl, "Waiting for next question…");
+                if (startNowBtn) startNowBtn.disabled = false;
+                if (scheduleBtn) scheduleBtn.disabled = false;
+            } else {
+                show(upcomingArea, false);
+                if (!state.question) {
+                    setText(statusEl, "Waiting…");
+                    if (startNowBtn) startNowBtn.disabled = false;
+                    if (scheduleBtn) scheduleBtn.disabled = false;
+                }
+            }
+        }
+
+        // Wire hub events
+        conn.on("RoomStateUpdated", render);
+        conn.on("QuestionEnded", (summary) => {
+            if (!resultsArea) return;
+            const { correctIndex, optionCounts = [], leaderboard = [] } = summary;
+            const total = optionCounts.reduce((a, b) => a + b, 0) || 1;
+            const pct = optionCounts.map((c) => Math.round((100 * c) / total));
+
+            resultsArea.style.display = "";
+            resultsArea.innerHTML = `
+        <h3>Results</h3>
+        <p>Correct option: <strong>${correctIndex}</strong></p>
+        <ul>${optionCounts.map((c, i) => `<li>Option ${i}: ${c} (${pct[i]}%)</li>`).join("")}</ul>
+        <h4>Leaderboard (Top 10)</h4>
+        <ol>${leaderboard.slice(0, 10).map(l => `<li>${l.name} — ${l.score}</li>`).join("")}</ol>
+      `;
+        });
+
+        // Form submit → claim host
+        form.dataset.bound = "main";
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            roomId = roomInput.value.trim().toUpperCase();
+            await conn.start();
+            await conn.invoke("ClaimHost", roomId);
+            if (startNowBtn) startNowBtn.disabled = false;
+            if (scheduleBtn) scheduleBtn.disabled = false;
+        });
+
+        // Start question now (legacy path that passes question text/options to server)
+        startNowBtn?.addEventListener("click", async () => {
+            const text = qText?.value.trim();
+            const options = qOpts.map((o) => o.value.trim()).filter(Boolean);
+            const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
+            const dur = parseInt(qDur?.value ?? "20", 10) || 20;
+            if (!text || options.length < 2) { alert("Enter question and at least 2 options"); return; }
+            await conn.invoke("StartQuestionNow", roomId, text, options, correct, dur);
+        });
+
+        // Schedule question (legacy path)
+        scheduleBtn?.addEventListener("click", async () => {
+            const text = qText?.value.trim();
+            const options = qOpts.map((o) => o.value.trim()).filter(Boolean);
+            const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
+            const inSec = parseInt(qIn?.value ?? "10", 10) || 10;
+            if (!text || options.length < 2) { alert("Enter question and at least 2 options"); return; }
+            await conn.invoke("ScheduleNextQuestion", roomId, text, options, correct, inSec);
+        });
+
+        // End current question
+        endBtn?.addEventListener("click", async () => {
+            await conn.invoke("EndQuestion", roomId);
+        });
+    })();
+
+    // =====================================================================
+    // PLAYER
+    // =====================================================================
+    (function playerScope() {
+        const form = $("joinForm");
+        if (!form) return;
+
+        // Form + UI elements
+        const nameInput = $("pName");
+        const roomInput = $("pRoom");
+        const playArea = $("playArea");
+        const pStatus = $("pStatus");
+        const pQText = $("pQText");
+        const pOptions = $("pOptions");
+        const pQuestion = $("pQuestion");
+        const pAnswered = $("pAnswered");
+        const pScore = $("pScore");
+        const pPlace = $("pPlace");
+        const pTimer = $("pTimer");
+        const pUpcoming = $("pUpcoming");
+        const pNextIn = $("pNextIn");
+        const pNextQ = $("pNextQ");
+        const pNextOpts = $("pNextOpts");
+
+        // State
+        const conn = createConnection();
+        let roomId = null;
+        let myName = null;
+        let answered = false;
+        const questionTicker = makeTicker();
+        const upcomingTicker = makeTicker();
+
+        /** Render player view given a RoomStateUpdated payload. */
+        function render(state) {
+            // My place / score
+            const players = Array.isArray(state.players) ? state.players : [];
+            const sorted = [...players].sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+            const myIndex = sorted.findIndex((p) => p.name === myName);
+            if (myIndex >= 0) setText(pPlace, `${myIndex + 1}/${sorted.length}`);
+            const me = players.find((p) => p.name === myName);
+            if (me) setText(pScore, me.score);
+
+            // Live question
+            if (state.question) {
+                setText(pStatus, "Answer the question!");
+                show(pQuestion, true);
+                show(pUpcoming, false);
+
+                setText(pQText, state.question.text);
+                pOptions.innerHTML = "";
+
+                const iHaveAnswered = !!players.find((p) => p.name === myName)?.hasAnswered;
+                answered = iHaveAnswered;
+                setText(pAnswered, answered ? "Yes" : "No");
+
+                (state.question.options || []).forEach((optText, idx) => {
+                    const btn = createAnswerButton(`${idx}: ${optText}`, answered, async () => {
+                        if (answered) return;
+                        answered = true;
+                        setText(pAnswered, "Yes");
+                        Array.from(pOptions.children).forEach((b) => b.setAttribute("disabled", "true"));
+                        await conn.invoke("SubmitAnswer", roomId, idx);
+                    });
+                    pOptions.appendChild(btn);
+                });
+
+                // Question timer
+                questionTicker.start(() => {
+                    setText(
+                        pTimer,
+                        secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds)
+                    );
+                }, 500);
+
+                // Kill upcoming ticker while question is live
+                upcomingTicker.stop();
+            } else {
+                show(pQuestion, false);
+                questionTicker.stop();
+
+                // Upcoming preview (if any)
+                if (state.upcoming) {
+                    show(pUpcoming, true);
+                    setText(pNextQ, state.upcoming.text);
+                    pNextOpts.innerHTML = "";
+                    (state.upcoming.options || []).forEach((opt, idx) => {
+                        const li = document.createElement("li");
+                        li.textContent = `${idx}: ${opt}`;
+                        pNextOpts.appendChild(li);
+                    });
+
+                    // Next-start countdown
+                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
+                    const updateNext = () => setText(pNextIn, secondsUntilUtc(targetUtc));
+                    updateNext();
+                    upcomingTicker.start(updateNext, 500);
+                } else {
+                    show(pUpcoming, false);
+                    upcomingTicker.stop();
+                }
+
+                setText(pStatus, "Waiting…");
+            }
+        }
+
+        // Hub wiring
+        conn.on("RoomStateUpdated", render);
+
+        // Join form
+        form.dataset.bound = "main";
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            roomId = roomInput.value.trim().toUpperCase();
+            myName = nameInput.value.trim();
+            if (!roomId || !myName) return;
+            await conn.start();
+            await conn.invoke("JoinAsPlayer", roomId, myName);
+            show(playArea, true);
+            show(form, false);
+            setText(pStatus, "Joined — waiting for host…");
+        });
+    })();
+
 })();
