@@ -9,20 +9,6 @@ namespace Quizzy.Core.Services
 {
     public class QuizCreationService : IQuizCreationService
     {
-        static IQuizCreationService? instance = null;
-        public static IQuizCreationService Instance
-        {
-            get
-            {
-                if (instance == null) instance = new QuizCreationService();
-                return instance;
-            }
-            set
-            {
-                instance = value;
-            }
-        }
-
         public void GenerateQuiz()
         {
 
