@@ -9,5 +9,12 @@ namespace Quizzy.Web.Controllers
 
         [HttpGet("/Player")]
         public IActionResult Player() => View();
+
+        [HttpGet("/Host/Lobby")]
+        public IActionResult HostLobby(string pin)
+        {
+            ViewData["Pin"] = pin ?? string.Empty;
+            return View("Lobby");
+        }
     }
 }

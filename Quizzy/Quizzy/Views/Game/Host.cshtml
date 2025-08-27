@@ -1,59 +1,77 @@
 @{
     Layout = "_Layout";
+    var pin = (string)(ViewData["Pin"] ?? "");
     ViewData["Title"] = "Quizzy Host";
 }
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-<script defer src="/js/quizzy.js"></script>
-
 <main class="container">
-    <h1>Host Console</h1>
-    <form id="hostForm">
-        <label>Room ID <input id="roomId" value="QUIZ" required /></label>
-        <button type="submit" class="btn btn-primary">Claim Host</button>
-    </form>
+    <h1>Quiz Lobby</h1>
+    <div class="alert alert-info">
+        <strong>Room Code:</strong>
+        <span id="roomPin">@pin</span>
+        <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
+        <div class="small text-muted">Players join via <code>/Player</code> and enter this code.</div>
+    </div>
 
-    <article>
-        <h2>Compose Question</h2>
-        <div class="grid">
-            <label>Question <input id="qText" placeholder="e.g. What is 2 + 2?" /></label>
-            <label>Duration (s) <input type="number" id="qDur" value="20" min="5" max="120" /></label>
-            <label>Next starts in (s) <input type="number" id="qIn" value="10" min="3" max="120" /></label>
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Players Joined (<span id="playerCount">0</span>)</h4>
+            <ul id="playerList" class="list-group"></ul>
         </div>
-        <div class="grid">
-            <input class="opt" placeholder="Option A" />
-            <input class="opt" placeholder="Option B" />
-            <input class="opt" placeholder="Option C" />
-            <input class="opt" placeholder="Option D" />
-        </div>
-        <label>Correct Option Index (0‑based) <input type="number" id="qCorrect" value="0" min="0" max="3" /></label>
-        <div class="mt-2">
-            <button id="startNowBtn" disabled>Start Now</button>
-            <button id="scheduleBtn" disabled class="secondary">Schedule Next</button>
-            <button id="endBtn" disabled class="contrast">End Question</button>
-        </div>
-    </article>
-
-    <article>
-        <h2>Live</h2>
-        <p><strong>Room:</strong> <span id="roomLabel">—</span>
-           <strong>Players:</strong> <span id="playerCount">0</span></p>
-        <p><strong>Status:</strong> <span id="status">Waiting…</span></p>
-        <div class="grid">
-            <div>
-                <div id="questionArea" style="display:none">
-                    <h3 id="liveQ">—</h3>
-                    <ol id="liveOptions"></ol>
-                </div>
-                <div id="resultsArea" style="display:none"></div>
+        <div class="col-md-6">
+            <h4>Controls</h4>
+            <div class="d-flex gap-2 mb-3">
+                <button id="startNowBtn" class="btn btn-primary" disabled>Start Next Question Now</button>
+                <button id="scheduleBtn" class="btn btn-outline-secondary" disabled>Schedule in 5s</button>
             </div>
-            <div>
-                <div><strong>Timer:</strong> <span id="timer">0</span>s</div>
-                <div id="upcomingArea" style="display:none">
-                    <p><strong>Next starts at:</strong> <span id="nextAt">—</span></p>
-                    <h4 id="nextQ">—</h4>
-                    <ol id="nextOpts"></ol>
-                </div>
-            </div>
+            <div id="status" class="text-muted">Waiting for players…</div>
         </div>
-    </article>
+    </div>
 </main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+    (function(){
+      const pin = document.getElementById('roomPin').textContent.trim();
+      const copyBtn = document.getElementById('copyPin');
+      const playerList = document.getElementById('playerList');
+      const playerCount = document.getElementById('playerCount');
+      const statusEl = document.getElementById('status');
+      const startNowBtn = document.getElementById('startNowBtn');
+      const scheduleBtn = document.getElementById('scheduleBtn');
+
+      copyBtn.addEventListener('click', async ()=>{
+        await navigator.clipboard.writeText(pin);
+        copyBtn.textContent='Copied!';
+        setTimeout(()=>copyBtn.textContent='Copy', 1200);
+      });
+
+      const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
+      conn.on('RoomStateUpdated', (state)=>{
+        playerCount.textContent = state.players.length;
+        playerList.innerHTML = '';
+        (state.players||[]).forEach(p => {
+          const li = document.createElement('li');
+          li.className='list-group-item d-flex justify-content-between align-items-center';
+          li.textContent = p.name;
+          const badge = document.createElement('span');
+          badge.className = 'badge bg-secondary rounded-pill';
+          badge.textContent = p.score ?? 0;
+          li.appendChild(badge);
+          playerList.appendChild(li);
+        });
+        statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
+        startNowBtn.disabled = false; scheduleBtn.disabled = false;
+      });
+
+      conn.start().then(async ()=>{
+        await conn.invoke('ClaimHost', pin);
+      }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
+
+      startNowBtn.addEventListener('click', async ()=>{
+        await conn.invoke('StartNextQuestionNow', pin);
+      });
+      scheduleBtn.addEventListener('click', async ()=>{
+        await conn.invoke('ScheduleNextQuestion', pin, 5);
+      });
+    })();
+</script>
