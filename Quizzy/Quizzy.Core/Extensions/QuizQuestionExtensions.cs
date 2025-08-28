@@ -20,7 +20,7 @@ namespace Quizzy.Core.Extensions
                     return question.ValidateAnswers() && count >= 1 && count <= 6;
 
                 case QuestionType.ShortAnswer:
-                    return question.ValidateAnswers() &&  question.Answers.Count() == 1;
+                    return question.ValidateAnswers() &&  question.Answers.Count() <= 10;
 
                 default:
                     return false;
@@ -32,6 +32,11 @@ namespace Quizzy.Core.Extensions
             foreach(var answer in question.Answers)
             {
                 if (!answer.Validate(question.QuestionType)) return false;
+            }
+
+            if(question.QuestionType == QuestionType.MultipleChoice)
+            {
+                return question.Answers.Any(a => a.IsCorrect) && question.Answers.Any(a => !a.IsCorrect);
             }
 
             return true;

@@ -14,7 +14,7 @@ namespace Quizzy.Core.Extensions
                     return !string.IsNullOrWhiteSpace(answer.Text) && answer.Text.Length < 300;
 
                 case QuestionType.ShortAnswer:
-                    return !string.IsNullOrWhiteSpace(answer.Text) && answer.Text.Length < 100;
+                    return !string.IsNullOrWhiteSpace(answer.Text) && answer.Text.Length < 100 && answer.IsCorrect; // In short answer, anything that isn't equal to a correct answer will automatically be incorrect. No need to supply incorrect answer entities
 
                 default:
                     return false;
