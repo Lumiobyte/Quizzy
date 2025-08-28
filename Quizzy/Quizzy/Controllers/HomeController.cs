@@ -38,11 +38,11 @@ namespace Quizzy.Controllers
             return View();
         }
 
-        public IActionResult CreateQuiz(int id = -1, string? import = null)
+        public IActionResult CreateQuiz(Guid? id, string? import = null)
         {
             QuizCreatorModel quiz;
 
-            if (id > 0)
+            if (id is not null)
             {
                 quiz = new QuizCreatorModel(id);
             }

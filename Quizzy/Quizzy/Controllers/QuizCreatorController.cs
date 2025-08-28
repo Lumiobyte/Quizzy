@@ -9,13 +9,11 @@ namespace Quizzy.Controllers
     public class QuizCreatorController(IQuizCreationService quizCreationService) : ControllerBase
     {
         [HttpPost("Create")]
-        public IActionResult Create([FromBody] QuizCreatorModel model, [FromQuery] bool createNew = true)
+        public async Task<IActionResult> Create([FromBody] QuizCreatorModel model, [FromQuery] Guid uId, [FromQuery] bool createNew = true)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            // Logic here
-            quizCreationService.GenerateQuiz();
-            return Ok(new { success = true, message = "Quiz saved." });
+            await quizCreationService.GenerateQuiz(model, uId, createNew);
+            return Ok(new { message = "Quiz saved." });
         }
     }
 }
