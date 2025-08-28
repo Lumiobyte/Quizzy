@@ -14,9 +14,8 @@ namespace Quizzy.Core.Services
 
         public async Task UpdateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-            if (model.QuizSourceId is null) throw new ArgumentException("QuizSourceId cannot be null when updating a quiz.");
-            await DeleteQuiz(model.QuizSourceId!.Value);
-            await AddNewQuizToDB(model, creatorId);
+            repository.Quizzes.Update(CreateQuizFromModel(model, creatorId));
+            await repository.SaveChangesAsync();
         }
 
         public async Task DeleteQuiz(Guid id)
@@ -27,7 +26,14 @@ namespace Quizzy.Core.Services
 
         async Task AddNewQuizToDB(QuizCreatorModel model, Guid creatorId)
         {
-            var newQuiz = new Quiz
+            var newQuiz = CreateQuizFromModel(model, creatorId);
+            await repository.Quizzes.AddAsync(newQuiz);
+            await repository.SaveChangesAsync();
+        }
+
+        Quiz CreateQuizFromModel(QuizCreatorModel model, Guid creatorId)
+        {
+            var quiz = new Quiz
             {
                 Id = model.QuizSourceId ?? Guid.NewGuid(),
                 Title = model.Title,
@@ -44,16 +50,15 @@ namespace Quizzy.Core.Services
                     }).ToList()
                 }).ToList()
             };
-            foreach (var question in newQuiz.Questions)
+            foreach (var question in quiz.Questions)
             {
-                question.QuizId = newQuiz.Id;
+                question.QuizId = quiz.Id;
                 foreach (var answer in question.Answers)
                 {
                     answer.QuestionId = question.Id;
                 }
             }
-            await repository.Quizzes.AddAsync(newQuiz);
-            await repository.SaveChangesAsync();
+            return quiz;
         }
     }
 }
