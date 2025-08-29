@@ -7,7 +7,7 @@ namespace Quizzy
 {
     public class Program
     {
-        static bool seedOnStartup = false;
+        static bool seedOnStartup = true;
 
         public static void Main(string[] args)
         {
