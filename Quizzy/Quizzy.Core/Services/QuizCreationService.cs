@@ -1,27 +1,64 @@
 ﻿using Quizzy.Core.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Quizzy.Core.Repositories;
+using Quizzy.Models;
 
 namespace Quizzy.Core.Services
 {
-    public class QuizCreationService : IQuizCreationService
+    public class QuizCreationService(IUnitOfWork repository) : IQuizCreationService
     {
-        public void GenerateQuiz()
+        public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId, bool createNew)
         {
-
+            if (createNew && model.QuizSourceId is not null) await UpdateQuiz(model, creatorId);
+            else await AddNewQuizToDB(model, creatorId);
         }
 
-        public void UpdateQuiz()
+        public async Task UpdateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-
+            repository.Quizzes.Update(CreateQuizFromModel(model, creatorId));
+            await repository.SaveChangesAsync();
         }
 
-        public void DeleteQuiz()
+        public async Task DeleteQuiz(Guid id)
         {
+            await repository.Quizzes.Remove(id);
+            await repository.SaveChangesAsync();
+        }
 
+        async Task AddNewQuizToDB(QuizCreatorModel model, Guid creatorId)
+        {
+            var newQuiz = CreateQuizFromModel(model, creatorId);
+            await repository.Quizzes.AddAsync(newQuiz);
+            await repository.SaveChangesAsync();
+        }
+
+        Quiz CreateQuizFromModel(QuizCreatorModel model, Guid creatorId)
+        {
+            var quiz = new Quiz
+            {
+                Id = model.QuizSourceId ?? Guid.NewGuid(),
+                Title = model.Title,
+                QuizAuthorId = creatorId,
+                Questions = model.Questions.Select(q => new QuizQuestion
+                {
+                    Id = Guid.NewGuid(),
+                    Text = q.Text,
+                    Answers = q.Answers.Select(a => new QuizAnswer
+                    {
+                        Id = Guid.NewGuid(),
+                        Text = a.Text,
+                        IsCorrect = a.IsCorrect
+                    }).ToList()
+                }).ToList()
+            };
+            foreach (var question in quiz.Questions)
+            {
+                question.QuizId = quiz.Id;
+                foreach (var answer in question.Answers)
+                {
+                    answer.QuestionId = question.Id;
+                }
+            }
+            return quiz;
         }
     }
 }

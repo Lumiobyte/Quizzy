@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Quizzy.Models
@@ -7,10 +6,10 @@ namespace Quizzy.Models
     {
         public QuizCreatorModel() { }
 
-        public QuizCreatorModel(int id)
+        public QuizCreatorModel(Guid? id)
         {
             QuizSourceId = id;
-            if (id > 0)
+            if (id is not null)
             {
                 // Get data from db
             }
@@ -18,7 +17,7 @@ namespace Quizzy.Models
 
         public QuizCreatorModel(string json)
         {
-            QuizSourceId = -1;
+            QuizSourceId = null;
             try
             {
                 var model = JsonSerializer.Deserialize<QuizCreatorModel>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -38,7 +37,7 @@ namespace Quizzy.Models
 
         public string Title { get; set; } = string.Empty;
         public List<QuestionModel> Questions { get; set; } = new();
-        public int QuizSourceId { get; set; } = -1; // If not null, this quiz is a copy of another quiz and can be saved as or updated
+        public Guid? QuizSourceId { get; set; } = null; // If not null, this quiz is a copy of another quiz and can be saved as or updated
 
         public class QuestionModel
         {
