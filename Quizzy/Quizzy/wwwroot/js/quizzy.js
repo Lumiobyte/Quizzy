@@ -5,7 +5,7 @@
  * - Clean rendering functions and timer management
  *
  * NOTE: This preserves existing server API calls and event names.
- *  - Server events listened:   "RoomStateUpdated", "QuestionEnded"
+ *  - Server events listened:   "sessionStateUpdated", "QuestionEnded"
  *  - Server methods invoked:   Host: ClaimHost, StartQuestionNow, ScheduleNextQuestion, EndQuestion
  *                               Player: JoinAsPlayer, SubmitAnswer
  *
@@ -84,8 +84,8 @@
         if (!form) return; // not on host legacy page
 
         // Inputs and labels
-        const roomInput = $("roomId");
-        const roomLabel = $("roomLabel");
+        const sessionInput = $("sessionId");
+        const sessionLabel = $("sessionLabel");
         const playerCountEl = $("playerCount");
         const statusEl = $("status");
         const timerEl = $("timer");
@@ -112,13 +112,13 @@
 
         // State
         const conn = createConnection();
-        let roomId = null;
+        let sessionId = null;
         const questionTicker = makeTicker();
 
         /** Render host view from server state. */
         function render(state) {
-            // room + players
-            setText(roomLabel, state.roomId);
+            // session + players
+            setText(sessionLabel, state.sessionId);
             setText(playerCountEl, state.players?.length ?? 0);
 
             // live question
@@ -168,7 +168,7 @@
         }
 
         // Wire hub events
-        conn.on("RoomStateUpdated", render);
+        conn.on("sessionStateUpdated", render);
         conn.on("QuestionEnded", (summary) => {
             if (!resultsArea) return;
             const { correctIndex, optionCounts = [], leaderboard = [] } = summary;
@@ -189,9 +189,9 @@
         form.dataset.bound = "main";
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            roomId = roomInput.value.trim().toUpperCase();
+            sessionId = sessionInput.value.trim().toUpperCase();
             await conn.start();
-            await conn.invoke("ClaimHost", roomId);
+            await conn.invoke("ClaimHost", sessionId);
             if (startNowBtn) startNowBtn.disabled = false;
             if (scheduleBtn) scheduleBtn.disabled = false;
         });
@@ -203,7 +203,7 @@
             const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
             const dur = parseInt(qDur?.value ?? "20", 10) || 20;
             if (!text || options.length < 2) { alert("Enter question and at least 2 options"); return; }
-            await conn.invoke("StartQuestionNow", roomId, text, options, correct, dur);
+            await conn.invoke("StartQuestionNow", sessionId, text, options, correct, dur);
         });
 
         // Schedule question (legacy path)
@@ -213,12 +213,12 @@
             const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
             const inSec = parseInt(qIn?.value ?? "10", 10) || 10;
             if (!text || options.length < 2) { alert("Enter question and at least 2 options"); return; }
-            await conn.invoke("ScheduleNextQuestion", roomId, text, options, correct, inSec);
+            await conn.invoke("ScheduleNextQuestion", sessionId, text, options, correct, inSec);
         });
 
         // End current question
         endBtn?.addEventListener("click", async () => {
-            await conn.invoke("EndQuestion", roomId);
+            await conn.invoke("EndQuestion", sessionId);
         });
     })();
 
@@ -231,7 +231,7 @@
 
         // Form + UI elements
         const nameInput = $("pName");
-        const roomInput = $("pRoom");
+        const sessionInput = $("psession");
         const playArea = $("playArea");
         const pStatus = $("pStatus");
         const pQText = $("pQText");
@@ -248,13 +248,13 @@
 
         // State
         const conn = createConnection();
-        let roomId = null;
+        let sessionId = null;
         let myName = null;
         let answered = false;
         const questionTicker = makeTicker();
         const upcomingTicker = makeTicker();
 
-        /** Render player view given a RoomStateUpdated payload. */
+        /** Render player view given a sessionStateUpdated payload. */
         function render(state) {
             // My place / score
             const players = Array.isArray(state.players) ? state.players : [];
@@ -283,7 +283,7 @@
                         answered = true;
                         setText(pAnswered, "Yes");
                         Array.from(pOptions.children).forEach((b) => b.setAttribute("disabled", "true"));
-                        await conn.invoke("SubmitAnswer", roomId, idx);
+                        await conn.invoke("SubmitAnswer", sessionId, idx);
                     });
                     pOptions.appendChild(btn);
                 });
@@ -328,17 +328,17 @@
         }
 
         // Hub wiring
-        conn.on("RoomStateUpdated", render);
+        conn.on("sessionStateUpdated", render);
 
         // Join form
         form.dataset.bound = "main";
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            roomId = roomInput.value.trim().toUpperCase();
+            sessionId = sessionInput.value.trim().toUpperCase();
             myName = nameInput.value.trim();
-            if (!roomId || !myName) return;
+            if (!sessionId || !myName) return;
             await conn.start();
-            await conn.invoke("JoinAsPlayer", roomId, myName);
+            await conn.invoke("JoinAsPlayer", sessionId, myName);
             show(playArea, true);
             show(form, false);
             setText(pStatus, "Joined — waiting for host…");

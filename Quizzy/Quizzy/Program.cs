@@ -21,6 +21,13 @@ namespace Quizzy
 
             var app = builder.Build();
 
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<Quizzy.Core.QuizzyDbContext>();
+                // If you don't have migrations yet, EnsureCreated() will build the schema once.
+                db.Database.EnsureCreated();
+            }
+
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");

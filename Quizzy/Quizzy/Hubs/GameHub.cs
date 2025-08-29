@@ -23,26 +23,26 @@ namespace Quizzy.Web.Hubs
         // Default per-question duration in seconds
         private const int DefaultQuestionDuration = 20;
 
-        public GameHub(SessionCoordinator sessions, IUnitOfWork uow)
+        public GameHub(SessionCoordinator sessions, IUnitOfWork unitOfWork)
         {
             _sessions = sessions;
-            _unitOfWork = uow;
+            _unitOfWork = unitOfWork;
         }
 
         // ---------------- UTIL & DTOs ----------------
 
-        private static RoomStateDto BuildStateDto(string gamePin, Services.SessionRuntime rt, IEnumerable<QuizPlayer> dbPlayers)
+        private static RoomStateDto BuildStateDto(string gamePin, Services.SessionRuntime runtime, IEnumerable<QuizPlayer> dbPlayers)
         {
-            var current = rt.CurrentQuestion;
-            var next = rt.NextQuestion;
+            var current = runtime.CurrentQuestion;
+            var next = runtime.NextQuestion;
 
             var playersDto = dbPlayers
                 .OrderBy(p => p.Name)
                 .Select(p => new {
                     id = p.Id,
                     name = p.Name,
-                    score = rt.ScoreByPlayer.TryGetValue(p.Id, out var s) ? s : 0,
-                    hasAnswered = rt.HasAnswered(p.Id)
+                    score = runtime.ScoreByPlayer.TryGetValue(p.Id, out var s) ? s : 0,
+                    hasAnswered = runtime.HasAnswered(p.Id)
                 })
                 .Cast<object>()
                 .ToArray();
@@ -50,48 +50,27 @@ namespace Quizzy.Web.Hubs
             return new RoomStateDto
             {
                 RoomId = gamePin.ToUpperInvariant(),
-                Host = string.IsNullOrEmpty(rt.HostConnectionId) ? null : "Host",
+                Host = string.IsNullOrEmpty(runtime.HostConnectionId) ? null : "Host",
                 Players = playersDto,
                 Question = current == null ? null : new RoomStateDto.QuestionBlock(
                     current.Text,
                     current.Answers.OrderBy(a => a.Id).Select(a => a.Text).ToArray(),
-                    rt.CurrentQuestionDurationSeconds,
-                    rt.CurrentQuestionStartUtc ?? DateTimeOffset.UtcNow
+                    runtime.CurrentQuestionDurationSeconds,
+                    runtime.CurrentQuestionStartUtc ?? DateTimeOffset.UtcNow
                 ),
-                Upcoming = next == null || rt.NextQuestionStartUtc == null ? null : new RoomStateDto.UpcomingBlock(
+                Upcoming = next == null || runtime.NextQuestionStartUtc == null ? null : new RoomStateDto.UpcomingBlock(
                     next.Text,
                     next.Answers.OrderBy(a => a.Id).Select(a => a.Text).ToArray(),
-                    rt.NextQuestionStartUtc.Value
+                    runtime.NextQuestionStartUtc.Value
                 )
             };
         }
 
-        private async Task BroadcastRoomState(string gamePin, Services.SessionRuntime rt)
+        private async Task BroadcastRoomState(string gamePin, Services.SessionRuntime runtime)
         {
             // Pull fresh players from DB to avoid stale names
             var players = await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSession.GamePin == gamePin);
-            await Clients.Group(gamePin).SendAsync("RoomStateUpdated", BuildStateDto(gamePin, rt, players));
-        }
-
-        private static (int correctIndex, int[] optionCounts, (string Name, int Score)[] leaderboard) BuildResults(
-            Services.SessionRuntime rt,
-            QuizQuestion q,
-            IEnumerable<QuizPlayer> players
-        )
-        {
-            var answersOrdered = q.Answers.OrderBy(a => a.Id).ToArray();
-            var correctIndex = Array.FindIndex(answersOrdered, a => a.IsCorrect);
-
-            var optionCounts = new int[answersOrdered.Length];
-            // Count based on whether player answered and which option index they picked => we can't read picks here;
-            // however we will persist PlayerAnswer and can compute from that if needed. For simplicity we infer from scores increment per Q is non-trivial.
-            // We'll compute optionCounts using PlayerAnswer records provided by caller.
-            // For now, return zeros; actual counts will be filled by caller passing real counts.
-            // This method kept for structure.
-            return (correctIndex, optionCounts, players
-                .Select(p => (p.Name, Score: rt.ScoreByPlayer.TryGetValue(p.Id, out var s) ? s : 0))
-                .OrderByDescending(x => x.Score).ThenBy(x => x.Name)
-                .ToArray());
+            await Clients.Group(gamePin).SendAsync("RoomStateUpdated", BuildStateDto(gamePin, runtime, players));
         }
 
         // ---------------- HOST FLOW ----------------
@@ -105,10 +84,10 @@ namespace Quizzy.Web.Hubs
                 attempts++;
             } while ((await _unitOfWork.QuizSessions.FindAsync(s => s.GamePin == pin)).Any() && attempts < 20);
 
-            var rt = _sessions.GetOrCreate(pin, () => EnsureSessionForPin(pin));
-            rt.ClaimHost(Context.ConnectionId);
+            var runtime = _sessions.GetOrCreate(pin, () => EnsureSessionForPin(pin));
+            runtime.ClaimHost(Context.ConnectionId);
             await Groups.AddToGroupAsync(Context.ConnectionId, pin);
-            await BroadcastRoomState(pin, rt);
+            await BroadcastRoomState(pin, runtime);
             return pin;
         }
 
@@ -124,22 +103,22 @@ namespace Quizzy.Web.Hubs
             if (string.IsNullOrWhiteSpace(gamePin)) throw new ArgumentException("gamePin required");
 
             // Load or create a QuizSession for this pin; seed quiz if needed
-            var rt = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
-            rt.ClaimHost(Context.ConnectionId);
+            var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
+            runtime.ClaimHost(Context.ConnectionId);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, gamePin);
-            await BroadcastRoomState(gamePin, rt);
+            await BroadcastRoomState(gamePin, runtime);
         }
 
         public async Task ScheduleNextQuestion(string gamePin, int inSeconds)
         {
-            if (!_sessions.TryGet(gamePin, out var rt)) return;
+            if (!_sessions.TryGet(gamePin, out var runtime)) return;
 
-            var next = rt.NextQuestion ?? rt.CurrentQuestion; // if no "next", show current as preview
+            var next = runtime.NextQuestion ?? runtime.CurrentQuestion; // if no "next", show current as preview
             if (next == null) return;
 
             var startUtc = DateTimeOffset.UtcNow.AddSeconds(Math.Max(1, inSeconds));
-            rt.SetUpcoming(startUtc);
+            runtime.SetUpcoming(startUtc);
 
             // Fire-and-forget a task to start question at schedule time
             _ = Task.Run(async () => {
@@ -148,22 +127,22 @@ namespace Quizzy.Web.Hubs
                 await StartNextQuestionNow(gamePin);
             });
 
-            await BroadcastRoomState(gamePin, rt);
+            await BroadcastRoomState(gamePin, runtime);
         }
 
         public async Task StartNextQuestionNow(string gamePin)
         {
-            if (!_sessions.TryGet(gamePin, out var rt)) return;
+            if (!_sessions.TryGet(gamePin, out var runtime)) return;
 
-            var totalQuestions = rt.Session?.Quiz?.Questions?.Count ?? 0;
-            if (rt.CurrentQuestionIndex + 1 >= totalQuestions) return; // no more questions
+            var totalQuestions = runtime.Session?.Quiz?.Questions?.Count ?? 0;
+            if (runtime.CurrentQuestionIndex + 1 >= totalQuestions) return; // no more questions
 
-            rt.BeginQuestionNow(DefaultQuestionDuration);
-            await BroadcastRoomState(gamePin, rt);
+            runtime.BeginQuestionNow(DefaultQuestionDuration);
+            await BroadcastRoomState(gamePin, runtime);
 
             // Automatically end question when timer elapses
             _ = Task.Run(async () => {
-                var endAt = rt.CurrentQuestionStartUtc!.Value.AddSeconds(rt.CurrentQuestionDurationSeconds);
+                var endAt = runtime.CurrentQuestionStartUtc!.Value.AddSeconds(runtime.CurrentQuestionDurationSeconds);
                 var delayMs = Math.Max(0, (int)(endAt - DateTimeOffset.UtcNow).TotalMilliseconds);
                 await Task.Delay(delayMs);
                 await EndCurrentQuestion(gamePin);
@@ -172,26 +151,36 @@ namespace Quizzy.Web.Hubs
 
         // ---------------- PLAYER FLOW ----------------
 
-        public async Task JoinAsPlayer(string gamePin, string name)
+        public async Task JoinAsPlayer(string gamePin, string name, UserAccount userAccount)
         {
-            if (string.IsNullOrWhiteSpace(gamePin)) throw new ArgumentException("gamePin required");
-            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("name required");
+            if (string.IsNullOrWhiteSpace(gamePin))
+            {
+                throw new ArgumentException("The Game Pin is required");
+            }
 
-            var rt = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("name required");
+            }
+                
+            var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
 
             // Ensure a QuizPlayer exists in DB for this session
-            var session = rt.Session;
+            var session = runtime.Session;
             var player = (await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSessionId == session.Id && p.Name == name)).FirstOrDefault();
             if (player == null)
             {
-                player = new QuizPlayer { Id = Guid.NewGuid(), Name = name, QuizSessionId = session.Id };
-                await _unitOfWork.QuizPlayers.AddAsync(player);
-                await _unitOfWork.SaveChangesAsync();
+                player = (await _unitOfWork.QuizPlayers.FindAsync(p => p.Name == name)).FirstOrDefault();
+                if (player == null)
+                {
+                    throw new ArgumentException("The name entered does not match with any user's names.");
+                }
+                
             }
 
-            rt.RegisterPlayer(Context.ConnectionId, player.Id);
+            runtime.RegisterPlayer(Context.ConnectionId, player.Id);
             await Groups.AddToGroupAsync(Context.ConnectionId, gamePin);
-            await BroadcastRoomState(gamePin, rt);
+            await BroadcastRoomState(gamePin, runtime);
         }
 
         /// <summary>
@@ -199,17 +188,17 @@ namespace Quizzy.Web.Hubs
         /// </summary>
         public async Task SubmitAnswer(string gamePin, int optionIndex)
         {
-            if (!_sessions.TryGet(gamePin, out var rt)) return;
-            var question = rt.CurrentQuestion;
-            if (question == null || rt.CurrentQuestionStartUtc == null) return;
+            if (!_sessions.TryGet(gamePin, out var runtime)) return;
+            var question = runtime.CurrentQuestion;
+            if (question == null || runtime.CurrentQuestionStartUtc == null) return;
 
             // Find player by connection
-            if (!rt.PlayerByConnection.TryGetValue(Context.ConnectionId, out var playerId)) return;
+            if (!runtime.PlayerByConnection.TryGetValue(Context.ConnectionId, out var playerId)) return;
             var player = await _unitOfWork.QuizPlayers.GetByIdAsync(playerId);
             if (player == null) return;
 
             // Prevent duplicate answers for the current question
-            if (rt.HasAnswered(player.Id)) return;
+            if (runtime.HasAnswered(player.Id)) return;
 
             // Map option index -> QuizAnswer
             var answersOrdered = question.Answers.OrderBy(a => a.Id).ToArray();
@@ -220,8 +209,8 @@ namespace Quizzy.Web.Hubs
             int points = 0;
             if (chosen.IsCorrect)
             {
-                var elapsed = (int)(DateTimeOffset.UtcNow - rt.CurrentQuestionStartUtc.Value).TotalMilliseconds;
-                var totalMs = rt.CurrentQuestionDurationSeconds * 1000;
+                var elapsed = (int)(DateTimeOffset.UtcNow - runtime.CurrentQuestionStartUtc.Value).TotalMilliseconds;
+                var totalMs = runtime.CurrentQuestionDurationSeconds * 1000;
                 var remainingRatio = Math.Max(0.0, (totalMs - elapsed) / (double)totalMs);
                 points = 1000 + (int)(500 * remainingRatio); // 1000-1500 depending on speed
             }
@@ -240,11 +229,11 @@ namespace Quizzy.Web.Hubs
             await _unitOfWork.SaveChangesAsync();
 
             // Update runtime state
-            rt.MarkAnswered(player.Id);
-            rt.ScoreByPlayer.AddOrUpdate(player.Id, points, (_, prev) => prev + points);
+            runtime.MarkAnswered(player.Id);
+            runtime.ScoreByPlayer.AddOrUpdate(player.Id, points, (_, prev) => prev + points);
 
             // Broadcast fresh state so the player sees "answered" + live leaderboard movement
-            await BroadcastRoomState(gamePin, rt);
+            await BroadcastRoomState(gamePin, runtime);
         }
 
         /// <summary>
@@ -298,35 +287,41 @@ namespace Quizzy.Web.Hubs
 
         private QuizSession EnsureSessionForPin(string gamePin)
         {
-            // Find existing session for pin
+            // Try existing
             var session = _unitOfWork.QuizSessions.FindAsync(s => s.GamePin == gamePin).GetAwaiter().GetResult().FirstOrDefault();
             if (session != null)
             {
-                // Eager load quiz, questions, answers if not loaded yet
-                // (since DbContext is scoped, we keep only IDs here; hub methods will fetch as needed)
                 return session;
             }
 
-            // Ensure there is at least one Quiz with questions to play
-            var quiz = _unitOfWork.Quizzes.GetAllAsync().GetAwaiter().GetResult().FirstOrDefault();
-            if (quiz == null)
+                // Ensure a host user exists (required FK QuizHostId)
+            var host = _unitOfWork.UserAccounts.FindAsync(u => u.Username == "host").GetAwaiter().GetResult().FirstOrDefault();
+            if (host == null)
             {
-                quiz = SeedDefaultQuiz();
+                //host = new UserAccount { Id = Guid.NewGuid(), Username = "host", Password = "n/a", Email = "host@example.com" };
+                //_unitOfWork.UserAccounts.AddAsync(host).GetAwaiter().GetResult();
+                //_unitOfWork.SaveChangesAsync().GetAwaiter().GetResult();
+                throw new InvalidOperationException("A host was not found with this game pin");
             }
 
-            // Create a session for this pin
-            session = new QuizSession
-            {
-                Id = Guid.NewGuid(),
-                GamePin = gamePin.ToUpperInvariant(),
-                QuizId = quiz.Id,
-                Quiz = quiz
-            };
-            _unitOfWork.QuizSessions.AddAsync(session).GetAwaiter().GetResult();
-            _unitOfWork.SaveChangesAsync().GetAwaiter().GetResult();
+            // Ensure there is at least one quiz
+            //var quiz = _unitOfWork.Quizzes.GetAllAsync().GetAwaiter().GetResult().FirstOrDefault();
+            //var quiz = GETSELECTEDQUIZ
+            //if (quiz == null) quiz = SeedDefaultQuiz();
 
+            //// Create session with required foreign keys set
+            //session = new QuizSession
+            //{
+            //    Id = Guid.NewGuid(),
+            //    GamePin = gamePin.ToUpperInvariant(),
+            //    QuizId = quiz.Id,
+            //    QuizHostId = host.Id
+            //};
+            //_unitOfWork.QuizSessions.AddAsync(session).GetAwaiter().GetResult();
+            //_unitOfWork.SaveChangesAsync().GetAwaiter().GetResult();
             return session;
         }
+
 
         private Quiz SeedDefaultQuiz()
         {
