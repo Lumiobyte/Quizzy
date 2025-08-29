@@ -42,6 +42,7 @@ namespace Quizzy.Core.Services
                 {
                     Id = Guid.NewGuid(),
                     Text = q.Text,
+                    QuestionType = q.Answers.Any(a => a.IsCorrect) ? Enums.QuestionType.MultipleChoice : Enums.QuestionType.ShortAnswer,
                     Answers = q.Answers.Select(a => new QuizAnswer
                     {
                         Id = Guid.NewGuid(),
@@ -56,6 +57,7 @@ namespace Quizzy.Core.Services
                 foreach (var answer in question.Answers)
                 {
                     answer.QuestionId = question.Id;
+                    if (question.QuestionType == Enums.QuestionType.ShortAnswer) answer.IsCorrect = true;
                 }
             }
             return quiz;
