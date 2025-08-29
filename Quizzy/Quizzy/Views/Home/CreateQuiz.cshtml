@@ -11,6 +11,7 @@
 <div id="questionsContainer">
     @for (int i = 0; i < Model.Questions.Count; i++)
     {
+        var isMultiChoice = Model.Questions[i].Answers.Any(a => a.IsCorrect);
         <div class="question-block" style="position:relative;">
             <button type="button" class="remove-question-btn" title="Remove Question">&times;</button>
             <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" /><br /><br />
@@ -20,10 +21,13 @@
                     <div style="position:relative;">
                         <button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
                         <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" />
-                        <label>
-                            <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" />
-                            Correct
-                        </label>
+                        @if (isMultiChoice)
+                        {
+                            <label>
+                                <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" />
+                                Correct
+                            </label>
+                        }
                         <br />
                     </div>
                 }
@@ -51,6 +55,7 @@
     <button id="exportJsonBtn" type="button">Download as JSON</button>
 </div>
 
+<input type="hidden" id="QuizSourceId" value="@Model.QuizSourceId" />
 <script type="module">
     import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
 
@@ -185,6 +190,12 @@
             title: document.getElementById('Title').value,
             questions: []
         };
+
+        const sourceId = document.getElementById('QuizSourceId')?.value;
+        if (sourceId) {
+            quiz.quizSourceId = sourceId;
+        }
+
         const questionBlocks = document.querySelectorAll('.question-block');
         questionBlocks.forEach(qBlock => {
             const qText = qBlock.querySelector('.question-text').value;

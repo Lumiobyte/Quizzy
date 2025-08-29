@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Quizzy.Core.Entities;
+using Quizzy.Core.Enums;
 
 namespace Quizzy.Models
 {
@@ -6,12 +8,26 @@ namespace Quizzy.Models
     {
         public QuizCreatorModel() { }
 
-        public QuizCreatorModel(Guid? id)
+        public QuizCreatorModel(Quiz quiz)
         {
-            QuizSourceId = id;
-            if (id is not null)
+            QuizSourceId = quiz?.Id ?? null;
+            if (QuizSourceId is not null && quiz is not null)
             {
-                // Get data from db
+                Title = quiz.Title;
+                Questions = quiz.Questions.Select(q => new QuestionModel
+                {
+                    Text = q.Text,
+                    Answers = q.Answers.Select(a => new AnswerModel
+                    {
+                        Text = a.Text,
+                        IsCorrect = q.QuestionType == QuestionType.MultipleChoice ? a.IsCorrect : false,
+                    }).ToList()
+                }).ToList();
+            }
+            else
+            {
+                Title = string.Empty;
+                Questions = new();
             }
         }
 

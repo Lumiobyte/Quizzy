@@ -8,14 +8,15 @@ namespace Quizzy.Core.Services
     {
         public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId, bool createNew)
         {
-            if (createNew && model.QuizSourceId is not null) await UpdateQuiz(model, creatorId);
+            if (!createNew && model.QuizSourceId is not null) await UpdateQuiz(model, creatorId);
             else await AddNewQuizToDB(model, creatorId);
         }
 
         public async Task UpdateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-            repository.Quizzes.Update(CreateQuizFromModel(model, creatorId));
-            await repository.SaveChangesAsync();
+            if (model.QuizSourceId is null) throw new ArgumentException("QuizSourceId cannot be null when updating a quiz.");
+            await DeleteQuiz(model.QuizSourceId!.Value);
+            await AddNewQuizToDB(model, creatorId);
         }
 
         public async Task DeleteQuiz(Guid id)
