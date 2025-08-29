@@ -1,0 +1,61 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quizzy Host";
+}
+<main class="container">
+    <h1>Host Console</h1>
+    <p class="text-muted">Create a new session to get a fresh Session Code, or claim an existing code.</p>
+
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Create New Session</h4>
+            <button id="createSessionBtn" class="btn btn-success">Create &amp; Claim New Session</button>
+        </div>
+        <div class="col-md-6">
+            <h4>Claim Existing Session</h4>
+            <form id="claimForm" class="d-flex gap-2">
+                <input id="hostRoom" class="form-control" placeholder="Enter Session Code (e.g., QUIZ12)" required />
+                <button class="btn btn-primary" type="submit">Claim Host</button>
+            </form>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script>
+        (function(){
+          const createBtn = document.getElementById('createSessionBtn');
+          const claimForm = document.getElementById('claimForm');
+          let conn = null;
+
+          async function ensureConn(){
+            if(!conn){
+              conn = new signalR.HubConnectionBuilder().withUrl('/gamehub').withAutomaticReconnect().build();
+              await conn.start();
+            }
+          }
+
+          createBtn?.addEventListener('click', async ()=>{
+            try{
+              createBtn.disabled = true;
+              await ensureConn();
+              const pin = await conn.invoke('CreateAndClaimSession');
+              window.location.href = '/Host/Lobby?pin=' + encodeURIComponent(pin);
+            }catch(err){
+              alert('Failed to create session: ' + (err?.message||err));
+              createBtn.disabled = false;
+            }
+          });
+
+          claimForm?.addEventListener('submit', async (e)=>{
+            e.preventDefault();
+            const pin = document.getElementById('hostRoom').value.trim().toUpperCase();
+            if(!pin) return;
+            await ensureConn();
+            await conn.invoke('ClaimHost', pin);
+            window.location.href = '/Host/Lobby?pin=' + encodeURIComponent(pin);
+          });
+        })();
+    </script>
+}

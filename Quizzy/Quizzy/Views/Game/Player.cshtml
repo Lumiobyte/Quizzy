@@ -1,0 +1,54 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quizzy Player";
+}
+<main class="container">
+    <h1>Join a Quiz</h1>
+    <form id="joinForm" class="mb-3">
+        <div class="row g-2">
+            <div class="col-sm-4"><input id="pSession" class="form-control" placeholder="Session Code" required /></div>
+            <div class="col-sm-4"><input id="pName" class="form-control" placeholder="Enter Name" required /></div>
+            <div class="col-sm-4"><button type="submit" class="btn btn-primary w-100">Join</button></div>
+        </div>
+        <div id="joinStatus" class="form-text"></div>
+    </form>
+
+    <div id="playArea" style="display:none;">
+        <div class="row">
+            <div class="col-md-6">
+                <div id="pStatus" class="mb-2 text-muted">Waiting…</div>
+                <section id="pQuestion" style="display:none;">
+                    <h3 id="pQText"></h3>
+                    <div id="pOptions" class="d-grid gap-2"></div>
+                    <div class="mt-2">Answered: <span id="pAnswered">No</span></div>
+                </section>
+                <section id="pUpcoming" style="display:none;">
+                    <div class="alert alert-info">
+                        <div>Next question in <span id="pNextIn">0</span>s</div>
+                        <div id="pNextQ" class="fw-bold"></div>
+                        <ul id="pNextOpts"></ul>
+                    </div>
+                </section>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <div>Timer: <span id="pTimer">0</span>s</div>
+                        <div>Score: <span id="pScore">0</span></div>
+                        <div>Place: <span id="pPlace">-</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script type="module">
+        import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+        window.localStorageKeys = localStorageKeys;
+        window.GetFromLocalStorage = GetFromLocalStorage;
+    </script>
+    <script defer src="/js/quizzy.js"></script>
+}
