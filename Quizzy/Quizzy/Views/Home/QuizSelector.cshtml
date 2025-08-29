@@ -12,6 +12,7 @@
     <div id="quizes-container"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
 <script type="module">
     import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
 
@@ -93,6 +94,29 @@
     }
 
     getAllQuizzes();
+
+
+    // Start Session buttons → create session bound to selected quiz + current user
+    document.getElementById('quizes-container')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.start-session-btn');
+        if (!btn) return;
+        const quizId = btn.getAttribute('data-id');
+        const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        if (!userId) { alert('Please log in first.'); return; }
+        try {
+            btn.disabled = true;
+            const connection = new signalR.HubConnectionBuilder().withUrl('/gamehub').withAutomaticReconnect().build();
+            await connection.start();
+            const pin = await connection.invoke('CreateAndClaimSessionForQuiz', userId, quizId);
+            // Navigate host to the Lobby
+            window.location.href = '/Host/Lobby?pin=' + encodeURIComponent(pin);
+        } catch (error) {
+            console.error('Failed to start session', error);
+            alert('Failed to start session: ' + (error?.message || error));
+        } finally {
+            btn.disabled = false;
+        }
+    });
 </script>
 
 <style>

@@ -6,8 +6,8 @@
 <main class="container">
     <h1>Quiz Lobby</h1>
     <div class="alert alert-info">
-        <strong>Room Code:</strong>
-        <span id="roomPin">@pin</span>
+        <strong>Session Code:</strong>
+        <span id="sessionPin">@pin</span>
         <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
         <div class="small text-muted">Players join via <code>/Player</code> and enter this code.</div>
     </div>
@@ -31,7 +31,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
 <script>
 (function(){
-  const pin = document.getElementById('roomPin').textContent.trim();
+  const pin = document.getElementById('sessionPin').textContent.trim();
   const copyBtn = document.getElementById('copyPin');
   const playerList = document.getElementById('playerList');
   const playerCount = document.getElementById('playerCount');
@@ -46,7 +46,7 @@
   });
 
   const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-  conn.on('RoomStateUpdated', (state)=>{
+  conn.on('SessionStateUpdated', (state)=>{
     playerCount.textContent = state.players.length;
     playerList.innerHTML = '';
     (state.players||[]).forEach(p => {

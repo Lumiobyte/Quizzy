@@ -6,7 +6,7 @@ namespace Quizzy.Web.Models
     public record QuestionStartedDto(string Text, string[] Options, int DurationSeconds, DateTimeOffset QuestionStartTimeUtc);
     public record QuestionSummaryDto(int correctIndex, int[] optionCounts, (string Name, int Score)[] leaderboard);
 
-    public class RoomStateDto
+    public class SessionStateDto
     {
         public string RoomId { get; init; } = string.Empty;
         public string? Host { get; init; }
