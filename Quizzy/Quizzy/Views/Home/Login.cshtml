@@ -40,7 +40,7 @@
                 SetLocalStorage(localStorageKeys.UserId, data.id);
                 alert("Logged in successfully")
                 window.location.href = '/';
-            } else alert("Login failed: " + data.message);
+            } else alert("Incorrect Username or Password");
         })
         .catch(error => {
             console.error('Error:', error);

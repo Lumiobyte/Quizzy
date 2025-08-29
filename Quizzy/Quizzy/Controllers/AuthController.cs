@@ -7,24 +7,24 @@ namespace Quizzy.Controllers
 {
     [ApiController]
     [Route("auth")]
-    public class AuthController : ControllerBase
+    public class AuthController(ILoginService loginService) : ControllerBase
     {
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            int id = AuthenticationService.Instance.LoginUser(request.Username, request.Password);
+            var id = await loginService.LoginUser(request.Username, request.Password);
 
             return Ok(new {id});
         }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequest request)
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            string message = "uh oh";
-            int? id = null;
+            string message = "An unknown error occured";
+            Guid? id = null;
             try
             {
-                id = AuthenticationService.Instance.CreateNewUser(request.Username, request.Password, request.Email);
+                id = await loginService.CreateNewUser(request.Username, request.Password, request.Email);
             }
             catch (ArgumentException ex)
             {

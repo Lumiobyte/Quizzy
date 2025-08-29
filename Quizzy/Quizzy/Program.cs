@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 using Quizzy.Core;
+using Quizzy.Core.Services;
 using Quizzy.Core.Repositories;
 using Quizzy.Web.Hubs;
 using Quizzy.Web.Services;
@@ -8,26 +9,35 @@ namespace Quizzy
 {
     public class Program
     {
+        static bool seedOnStartup = false;
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Services
+            // Add services to the container.
             builder.Services.AddControllersWithViews();
             builder.Services.AddDbContext<QuizzyDbContext>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddSignalR();
             builder.Services.AddSingleton<SessionCoordinator>();
+            builder.Services.AddScoped<ILoginService, LoginService>();
+            builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
+            builder.Services.AddScoped<IReportingService, ReportingService>();
 
             var app = builder.Build();
 
-            using (var scope = app.Services.CreateScope())
+            if (seedOnStartup)
             {
-                var db = scope.ServiceProvider.GetRequiredService<Quizzy.Core.QuizzyDbContext>();
-                // If you don't have migrations yet, EnsureCreated() will build the schema once.
-                db.Database.EnsureCreated();
+                using (var scope = app.Services.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<QuizzyDbContext>();
+                    db.Database.EnsureDeleted();
+                    db.Database.EnsureCreated();
+                }
             }
 
+            // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");

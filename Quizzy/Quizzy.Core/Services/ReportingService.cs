@@ -9,20 +9,6 @@ namespace Quizzy.Core.Services
 {
     public class ReportingService : IReportingService
     {
-        static IReportingService? instance = null;
-        public static IReportingService Instance
-        {
-            get
-            {
-                if (instance == null) instance = new ReportingService();
-                return instance;
-            }
-            set
-            {
-                instance = value;
-            }
-        }
-
         public void SendReportsToUser(QuizSession session, UserAccount user)
         {
 

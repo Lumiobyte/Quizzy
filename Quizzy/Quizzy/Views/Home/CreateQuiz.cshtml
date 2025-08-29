@@ -12,48 +12,51 @@
     @for (int i = 0; i < Model.Questions.Count; i++)
     {
         <div class="question-block" style="position:relative;">
-            <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
-            <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
+            <button type="button" class="remove-question-btn" title="Remove Question">&times;</button>
+            <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" /><br /><br />
             <div class="answers" id="answers-@i">
                 @for (int j = 0; j < Model.Questions[i].Answers.Count; j++)
                 {
                     <div style="position:relative;">
-                        <button type="button" class="remove-answer-btn" onclick="removeAnswer(this)" title="Remove Answer">&times;</button>
-                        <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" oninput="updateSaveButtonState()" />
+                        <button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
+                        <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" />
                         <label>
-                            <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" oninput="updateSaveButtonState()" />
+                            <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" />
                             Correct
                         </label>
                         <br />
                     </div>
                 }
             </div>
-            <button type="button" onclick="addAnswer(@i)">Add Answer</button><br /><br />
+            <button type="button" class="add-answer-btn" data-qid="@i">Add Answer</button><br /><br />
         </div>
     }
 </div>
 
-<button type="button" onclick="addQuestion()">Add Question</button>
+<button id="addQuestionButton" type="button">Add Question</button>
 <br />
 <br />
 @* Patapim *@
 <div class="save-options">
-    @if (Model.QuizSourceId > 0)
+    @if (Model.QuizSourceId is not null)
     {
-        <button id="updateBtn" type="submit" onclick="saveQuiz(false)">Update Quiz</button>
+        <button id="updateBtn" type="button">Update Quiz</button>
     }
-    <button id="createBtn" type="submit" onclick="saveQuiz(true)">Save as New Quiz</button>
-    <button id="exportJsonBtn" onclick="downloadJSON()">Download as JSON</button>
+    <button id="createBtn" type="button">Save as New Quiz</button>
+    <button id="exportJsonBtn" type="button">Download as JSON</button>
 </div>
 
-<script>
+<script type="module">
+    import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+
     let questionCount = @Model.Questions.Count;
     let answerCounts = [];
     @for (int i = 0; i < Model.Questions.Count; i++)
     {
-        <text>answerCounts[@i] = @Model.Questions[i].Answers.Count;</text>
+            <text>answerCounts[@i] = @Model.Questions[i].Answers.Count;</text>
     }
-	updateSaveButtonState();
+
+    updateSaveButtonState();
 
     function updateSaveButtonState() {
         const createBtn = document.getElementById("createBtn");
@@ -62,17 +65,51 @@
         if (isQuizValid()) {
             createBtn.removeAttribute("disabled");
             jsonBtn.removeAttribute("disabled");
-            if (updateBtn !== null) updateBtn.removeAttribute("disabled");
-        }
-        else {
+            if (updateBtn) updateBtn.removeAttribute("disabled");
+        } else {
             createBtn.setAttribute("disabled", "disabled");
             jsonBtn.setAttribute("disabled", "disabled");
-            if (updateBtn !== null) updateBtn.setAttribute("disabled", "disabled");
+            if (updateBtn) updateBtn.setAttribute("disabled", "disabled");
         }
-	}
+    }
+    document.getElementById("Title").addEventListener("input", updateSaveButtonState);
+    const container = document.getElementById("questionsContainer");
+
+    const inputChangeHandler = (e) => {
+        if (e.target.matches(".question-text, .answer-text, .answer-correct")) updateSaveButtonState();
+    };
+    container.addEventListener("input", inputChangeHandler);
+    container.addEventListener("change", inputChangeHandler);
+
+    container.addEventListener("click", (e) => {
+        const removeQuestionBtn = e.target.closest(".remove-question-btn");
+        if (removeQuestionBtn) {
+            removeQuestion(removeQuestionBtn);
+            return;
+        }
+
+        const removeAnswerBtn = e.target.closest(".remove-answer-btn");
+        if (removeAnswerBtn) {
+            removeAnswer(removeAnswerBtn);
+            return;
+        }
+
+        const addAnswerBtn = e.target.closest(".add-answer-btn");
+        if (addAnswerBtn) {
+            const qid = parseInt(addAnswerBtn.dataset.qid, 10);
+            if (!Number.isNaN(qid)) addAnswer(qid);
+            return;
+        }
+    });
+
+    document.getElementById("addQuestionButton").addEventListener('click', addQuestion);
+    document.getElementById("createBtn").addEventListener("click", () => saveQuiz(true));
+    const updateBtnRef = document.getElementById("updateBtn");
+
+    if (updateBtnRef) updateBtnRef.addEventListener("click", () => saveQuiz(false));
+    document.getElementById("exportJsonBtn").addEventListener("click", downloadJSON);
 
     function addQuestion() {
-        const container = document.getElementById("questionsContainer");
         const qIdx = questionCount;
         answerCounts[qIdx] = 0;
 
@@ -80,10 +117,10 @@
         questionDiv.className = "question-block";
         questionDiv.style.position = "relative";
         questionDiv.innerHTML = `
-            <button type="button" class="remove-question-btn" onclick="removeQuestion(this)" title="Remove Question">&times;</button>
-            <input type="text" name="Questions[${qIdx}].Text" class="question-text" oninput="updateSaveButtonState()" /><br /><br />
+            <button type="button" class="remove-question-btn" title="Remove Question">&times;</button>
+            <input type="text" name="Questions[${qIdx}].Text" class="question-text" /><br /><br />
             <div class="answers" id="answers-${qIdx}"></div>
-            <button type="button" onclick="addAnswer(${qIdx})">Add Answer</button><br /><br />
+            <button type="button" class="add-answer-btn" data-qid="${qIdx}">Add Answer</button><br /><br />
         `;
         container.appendChild(questionDiv);
         questionCount++;
@@ -98,10 +135,10 @@
         const answerDiv = document.createElement("div");
         answerDiv.style.position = "relative";
         answerDiv.innerHTML = `
-            <button type="button" class="remove-answer-btn" onclick="removeAnswer(this)" title="Remove Answer">&times;</button>
-            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text"  oninput="updateSaveButtonState()" />
+            <button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
+            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text" />
             <label>
-                <input type="checkbox" name="Questions[${questionId}].Answers[${aIdx}].IsCorrect" value="true" class="answer-correct"  oninput="updateSaveButtonState()" />
+                <input type="checkbox" name="Questions[${questionId}].Answers[${aIdx}].IsCorrect" value="true" class="answer-correct" />
                 Correct
             </label><br />
         `;
@@ -112,24 +149,19 @@
 
     function saveQuiz(createNew) {
         if (isQuizValid()) {
-            const quizData = getQuizDataFromPage();
-            quizData.createNew = createNew;
+             const quizData = getQuizDataFromPage();
+             const uId = GetFromLocalStorage(localStorageKeys.UserId);
+             if (!uId) { alert('Please sign in'); return; }
 
-            fetch('/QuizCreator/Create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(quizData)
-            })
-            .then(response => {
-                if (response.ok) return response.json();
-                throw new Error('Network response was not ok.');
-            })
-            .then(data => { alert('Quiz saved successfully!'); })
+             fetch(`/QuizCreator/Create?uId=${encodeURIComponent(uId)}&createNew=${createNew}`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify(quizData)
+             })
+            .then(response => { if (!response.ok) Promise.reject(new Error("Save failed"))})
+            .then(() => { alert('Quiz saved successfully!'); })
             .catch(error => { alert('Error saving quiz: ' + error.message); });
-        }
-        else alert("There are errors in the quiz. Please fix these before saving.")
+        } else alert("There are errors in the quiz. Please fix these before saving.");
     }
 
     function getQuizDataFromPage() {
@@ -149,10 +181,7 @@
                     isCorrect: answerChecks[idx].checked
                 });
             });
-            quiz.questions.push({
-                text: qText,
-                answers: answers
-            });
+            quiz.questions.push({ text: qText, answers });
         });
         return quiz;
     }
@@ -170,13 +199,13 @@
             for (let i = 0; i < answers.length; i++) {
                 const answerText = answers[i].value.trim();
                 const isCorrect = q.querySelectorAll(".answer-correct")[i].checked;
-                if (answerText === "") return false;createBtn
+                if (answerText === "") return false;
                 if (isCorrect) hasCorrect = true;
             }
             if (!hasCorrect) return false;
         }
         return true;
-	}
+    }
 
     function removeQuestion(btn) {
         const questionBlock = btn.closest('.question-block');
@@ -201,11 +230,11 @@
         downloadAnchorNode.remove();
     }
 
-    document.getElementById("importJsonBtn").addEventListener("click", function() {
+    document.getElementById("importJsonBtn").addEventListener("click", function () {
         document.getElementById("importJsonInput").click();
     });
 
-    document.getElementById("importJsonInput").addEventListener("change", function(event) {
+    document.getElementById("importJsonInput").addEventListener("change", function (event) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
