@@ -12,15 +12,15 @@ namespace Quizzy.Web.Services
 
         public SessionRuntime GetOrCreate(string pin, Func<QuizSession> factory) => _sessions.GetOrAdd(pin, _ => new SessionRuntime(factory()));
 
-        public bool TryGet(string pin, out SessionRuntime rt) => _sessions.TryGetValue(pin, out rt);
+        public bool TryGet(string pin, out SessionRuntime runtime) => _sessions.TryGetValue(pin, out runtime);
 
         public void RemoveConnection(string connectionId)
         {
-            foreach (var kvp in _sessions)
+            foreach (var keyValuePair in _sessions)
             {
-                var rt = kvp.Value;
-                rt.PlayerByConnection.TryRemove(connectionId, out _);
-                if (rt.HostConnectionId == connectionId) rt.HostConnectionId = string.Empty;
+                var runtime = keyValuePair.Value;
+                runtime.PlayerByConnection.TryRemove(connectionId, out _);
+                if (runtime.HostConnectionId == connectionId) runtime.HostConnectionId = string.Empty;
             }
         }
     }
@@ -48,11 +48,11 @@ namespace Quizzy.Web.Services
         public SessionRuntime(QuizSession session) { Session = session; }
 
         public QuizQuestion? CurrentQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex >= 0 && CurrentQuestionIndex < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(q => q.Id).ElementAt(CurrentQuestionIndex) 
+            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex) 
             : null;
 
         public QuizQuestion? NextQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex + 1 < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(q => q.Id).ElementAt(CurrentQuestionIndex + 1) 
+            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex + 1) 
             : null;
 
 
@@ -70,6 +70,6 @@ namespace Quizzy.Web.Services
         
         public void MarkAnswered(Guid playerId) { AnsweredThisQuestion[playerId] = true; }
         
-        public bool HasAnswered(Guid playerId) => AnsweredThisQuestion.TryGetValue(playerId, out var v) && v;
+        public bool HasAnswered(Guid playerId) => AnsweredThisQuestion.TryGetValue(playerId, out var value) && value;
     }
 }

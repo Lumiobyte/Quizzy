@@ -2,6 +2,7 @@
 
 namespace Quizzy.Web.Hubs
 {
+    //Plan to use this for the chat feature later on
     public class UserHub : Hub
     {
         public Task SendAnswer(int userID, string answer)
