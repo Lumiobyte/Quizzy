@@ -11,6 +11,7 @@
 <div id="questionsContainer">
     @for (int i = 0; i < Model.Questions.Count; i++)
     {
+        var isMultiChoice = Model.Questions[i].Answers.Any(a => a.IsCorrect);
         <div class="question-block" style="position:relative;">
             <button type="button" class="remove-question-btn" title="Remove Question">&times;</button>
             <input type="text" name="Questions[@i].Text" value="@Model.Questions[i].Text" class="question-text" /><br /><br />
@@ -20,23 +21,31 @@
                     <div style="position:relative;">
                         <button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
                         <input type="text" name="Questions[@i].Answers[@j].Text" value="@Model.Questions[i].Answers[j].Text" class="answer-text" />
-                        <label>
-                            <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" />
-                            Correct
-                        </label>
+                        @if (isMultiChoice)
+                        {
+                            <label>
+                                <input type="checkbox" name="Questions[@i].Answers[@j].IsCorrect" value="true" @(Model.Questions[i].Answers[j].IsCorrect ? "checked" : "") class="answer-correct" />
+                                Correct
+                            </label>
+                        }
                         <br />
                     </div>
                 }
             </div>
-            <button type="button" class="add-answer-btn" data-qid="@i">Add Answer</button><br /><br />
+            <button type="button" class="add-multichoice-answer-btn" data-qid="@i">Add Multi-Choice Answer</button>
+            <button type="button" class="add-short-answer-btn" data-qid="@i">Add Short Answer</button>
+            <br /><br />
         </div>
     }
 </div>
 
-<button id="addQuestionButton" type="button">Add Question</button>
+<div class="inline-block">
+    <button id="addMultiChoiceQuestionButton" type="button">Add Multi-Choice Question</button>
+    <button id="addShortAnswerQuestionButton" type="button">Add Short Answer Question</button>
+</div>
 <br />
 <br />
-@* Patapim *@
+
 <div class="save-options">
     @if (Model.QuizSourceId is not null)
     {
@@ -46,6 +55,7 @@
     <button id="exportJsonBtn" type="button">Download as JSON</button>
 </div>
 
+<input type="hidden" id="QuizSourceId" value="@Model.QuizSourceId" />
 <script type="module">
     import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
 
@@ -94,22 +104,30 @@
             return;
         }
 
-        const addAnswerBtn = e.target.closest(".add-answer-btn");
-        if (addAnswerBtn) {
-            const qid = parseInt(addAnswerBtn.dataset.qid, 10);
-            if (!Number.isNaN(qid)) addAnswer(qid);
+        const addMultichoiceAnswerBtn = e.target.closest(".add-multichoice-answer-btn");
+        if (addMultichoiceAnswerBtn) {
+            const qid = parseInt(addMultichoiceAnswerBtn.dataset.qid, 10);
+            if (!Number.isNaN(qid)) addAnswer(qid, true);
+            return;
+        }
+
+        const addShortAnswerBtn = e.target.closest(".add-short-answer-btn");
+        if (addShortAnswerBtn) {
+            const qid = parseInt(addShortAnswerBtn.dataset.qid, 10);
+            if (!Number.isNaN(qid)) addAnswer(qid, false);
             return;
         }
     });
 
-    document.getElementById("addQuestionButton").addEventListener('click', addQuestion);
+    document.getElementById("addMultiChoiceQuestionButton").addEventListener('click', () => addQuestion("multichoice"));
+    document.getElementById("addShortAnswerQuestionButton").addEventListener('click', () => addQuestion("short"));
     document.getElementById("createBtn").addEventListener("click", () => saveQuiz(true));
     const updateBtnRef = document.getElementById("updateBtn");
 
     if (updateBtnRef) updateBtnRef.addEventListener("click", () => saveQuiz(false));
     document.getElementById("exportJsonBtn").addEventListener("click", downloadJSON);
 
-    function addQuestion() {
+    function addQuestion(answerType) {
         const qIdx = questionCount;
         answerCounts[qIdx] = 0;
 
@@ -120,28 +138,31 @@
             <button type="button" class="remove-question-btn" title="Remove Question">&times;</button>
             <input type="text" name="Questions[${qIdx}].Text" class="question-text" /><br /><br />
             <div class="answers" id="answers-${qIdx}"></div>
-            <button type="button" class="add-answer-btn" data-qid="${qIdx}">Add Answer</button><br /><br />
+            <button type="button" class="add-${answerType}-answer-btn" data-qid="${qIdx}">Add Answer</button><br /><br />
         `;
         container.appendChild(questionDiv);
         questionCount++;
         updateSaveButtonState();
     }
 
-    function addAnswer(questionId) {
+    function addAnswer(questionId, isMultiChoice) {
         if (typeof answerCounts[questionId] === "undefined") answerCounts[questionId] = 0;
         const answersDiv = document.getElementById(`answers-${questionId}`);
         const aIdx = answerCounts[questionId];
 
         const answerDiv = document.createElement("div");
         answerDiv.style.position = "relative";
-        answerDiv.innerHTML = `
-            <button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
-            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text" />
-            <label>
+        let newHtml = `<button type="button" class="remove-answer-btn" title="Remove Answer">&times;</button>
+            <input type="text" name="Questions[${questionId}].Answers[${aIdx}].Text" class="answer-text" />`;
+        if (isMultiChoice) {
+            newHtml += `<label>
                 <input type="checkbox" name="Questions[${questionId}].Answers[${aIdx}].IsCorrect" value="true" class="answer-correct" />
                 Correct
-            </label><br />
-        `;
+            </label>`;
+        }
+        newHtml += `<br />`;
+
+        answerDiv.innerHTML = newHtml;
         answersDiv.appendChild(answerDiv);
         answerCounts[questionId]++;
         updateSaveButtonState();
@@ -169,6 +190,12 @@
             title: document.getElementById('Title').value,
             questions: []
         };
+
+        const sourceId = document.getElementById('QuizSourceId')?.value;
+        if (sourceId) {
+            quiz.quizSourceId = sourceId;
+        }
+
         const questionBlocks = document.querySelectorAll('.question-block');
         questionBlocks.forEach(qBlock => {
             const qText = qBlock.querySelector('.question-text').value;
@@ -176,9 +203,10 @@
             const answerTexts = qBlock.querySelectorAll('.answer-text');
             const answerChecks = qBlock.querySelectorAll('.answer-correct');
             answerTexts.forEach((aText, idx) => {
+                const isCorrect = answerChecks[idx]?.checked ?? false;
                 answers.push({
                     text: aText.value,
-                    isCorrect: answerChecks[idx].checked
+                    isCorrect: isCorrect
                 });
             });
             quiz.questions.push({ text: qText, answers });
@@ -193,16 +221,27 @@
             if (q.querySelector(".question-text").value.trim() === "") return false;
 
             const answers = q.querySelectorAll(".answer-text");
-            if (answers.length < 2) return false;
+            if (answers.length === 0) return false;
 
-            let hasCorrect = false;
-            for (let i = 0; i < answers.length; i++) {
-                const answerText = answers[i].value.trim();
-                const isCorrect = q.querySelectorAll(".answer-correct")[i].checked;
-                if (answerText === "") return false;
-                if (isCorrect) hasCorrect = true;
+            const hasCheckboxes = q.querySelectorAll(".answer-correct").length > 0;
+
+            if (hasCheckboxes) {
+                // Multi-choice rules: >= 2 answers and at least one correct
+                if (answers.length < 2) return false;
+                let hasCorrect = false;
+                for (let i = 0; i < answers.length; i++) {
+                    const answerText = answers[i].value.trim();
+                    if (answerText === "") return false;
+                    const isCorrect = q.querySelectorAll(".answer-correct")[i]?.checked ?? false;
+                    if (isCorrect) hasCorrect = true;
+                }
+                if (!hasCorrect) return false;
+            } else {
+                for (let i = 0; i < answers.length; i++) {
+                    const answerText = answers[i].value.trim();
+                    if (answerText === "") return false;
+                }
             }
-            if (!hasCorrect) return false;
         }
         return true;
     }
@@ -264,14 +303,15 @@
         transition: background 0.2s;
     }
 
-    .remove-question-btn:hover, .remove-answer-btn:hover {
-        background: #c0392b;
-    }
+        .remove-question-btn:hover, .remove-answer-btn:hover {
+            background: #c0392b;
+        }
 
     .question-block, .answers > div {
         position: relative;
         padding-left: 36px;
     }
+
     .save-options {
         display: inline-block;
         margin-right: 10px;
