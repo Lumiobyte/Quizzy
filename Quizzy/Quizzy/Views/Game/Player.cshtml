@@ -13,6 +13,49 @@
         <div id="joinStatus" class="form-text"></div>
     </form>
 
+
+    <style>
+        .countdown-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .countdown-number {
+            font-size: clamp(80px, 20vw, 240px);
+            color: #fff;
+            font-weight: 800;
+            line-height: 1;
+            animation: pop 1s ease-out infinite;
+            text-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+
+        @@keyframes pop {
+            0% {
+                transform: scale(0.6);
+                opacity: 0.6;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1.0);
+                opacity: 0.9;
+            }
+        }
+    </style>
+
+    <div id="countdownOverlay" class="countdown-overlay">
+        <div id="countdownNumber" class="countdown-number">3</div>
+    </div>
+
     <div id="playArea" style="display:none;">
         <div class="row">
             <div class="col-md-6">
