@@ -17,7 +17,7 @@ namespace Quizzy.Core.Extensions
             {
                 case QuestionType.MultipleChoice:
                     var count = question.Answers.Count();
-                    return question.ValidateAnswers() && count >= 1 && count <= 6;
+                    return question.ValidateAnswers() && count > 1 && count <= 6;
 
                 case QuestionType.ShortAnswer:
                     return question.ValidateAnswers() &&  question.Answers.Count() <= 10;
