@@ -226,7 +226,15 @@ namespace Quizzy.Web.Hubs
             });
         }
 
+
+
+        public async Task StartQuestionNow(string gamePin)
+        {
+            await StartNextQuestionNow(gamePin);
+        }
+
         // ---------------- PLAYER FLOW ----------------
+
 
         public async Task JoinAsPlayer(string gamePin, string name, UserAccount userAccount)
         {
@@ -237,28 +245,67 @@ namespace Quizzy.Web.Hubs
 
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new ArgumentException("name required");
+                throw new ArgumentException("Player name is required");
+            }
+
+            if (userAccount == null || userAccount.Id == Guid.Empty)
+            {
+                throw new HubException("Please log in before joining.");
             }
 
             var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
-
-            // Ensure a QuizPlayer exists in DB for this session
             var session = runtime.Session;
-            var player = (await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSessionId == session.Id && p.Name == name)).FirstOrDefault();
-            if (player == null)
+
+            var account = await _unitOfWork.UserAccounts.GetByIdAsync(userAccount.Id);
+            if (account == null)
             {
-                player = (await _unitOfWork.QuizPlayers.FindAsync(p => p.Name == name)).FirstOrDefault();
-                if (player == null)
+                throw new HubException("User account not found.");
+            }
+
+            var existing = (await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSessionId == session.Id && p.UserAccountId == account.Id)).FirstOrDefault();
+
+            QuizPlayer player;
+            if (existing == null)
+            {
+                var baseName = name.Trim();
+                var candidate = baseName;
+                var i = 2;
+
+                while ((await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSessionId == session.Id && p.Name == candidate)).Any())
                 {
-                    throw new ArgumentException("The name entered does not match with any user's names.");
+                    candidate = $"{baseName} ({i++})";
                 }
 
+                player = new QuizPlayer
+                {
+                    Id = Guid.NewGuid(),
+                    Name = candidate,
+                    UserAccountId = account.Id,
+                    QuizSessionId = session.Id
+                };
+
+                await _unitOfWork.QuizPlayers.AddAsync(player);
+                await _unitOfWork.SaveChangesAsync();
+            }
+            else
+            {
+                player = existing;
+
+                if (!string.Equals(player.Name, name, StringComparison.Ordinal))
+                {
+                    player.Name = name;
+                    _unitOfWork.QuizPlayers.Update(player);
+                    await _unitOfWork.SaveChangesAsync();
+                }
             }
 
             runtime.RegisterPlayer(Context.ConnectionId, player.Id);
+
             await Groups.AddToGroupAsync(Context.ConnectionId, gamePin);
+
             await BroadcastSessionState(gamePin, runtime);
         }
+
 
         /// <summary>
         /// Called by the client when clicking an answer option.

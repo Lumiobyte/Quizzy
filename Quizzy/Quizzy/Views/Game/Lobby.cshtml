@@ -30,48 +30,48 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
 <script>
-(function(){
-  const pin = document.getElementById('sessionPin').textContent.trim();
-  const copyBtn = document.getElementById('copyPin');
-  const playerList = document.getElementById('playerList');
-  const playerCount = document.getElementById('playerCount');
-  const statusEl = document.getElementById('status');
-  const startNowBtn = document.getElementById('startNowBtn');
-  const scheduleBtn = document.getElementById('scheduleBtn');
+    (function(){
+      const pin = document.getElementById('sessionPin').textContent.trim();
+      const copyBtn = document.getElementById('copyPin');
+      const playerList = document.getElementById('playerList');
+      const playerCount = document.getElementById('playerCount');
+      const statusEl = document.getElementById('status');
+      const startNowBtn = document.getElementById('startNowBtn');
+      const scheduleBtn = document.getElementById('scheduleBtn');
 
-  copyBtn.addEventListener('click', async ()=>{
-    await navigator.clipboard.writeText(pin);
-    copyBtn.textContent='Copied!';
-    setTimeout(()=>copyBtn.textContent='Copy', 1200);
-  });
+      copyBtn.addEventListener('click', async ()=>{
+        await navigator.clipboard.writeText(pin);
+        copyBtn.textContent='Copied!';
+        setTimeout(()=>copyBtn.textContent='Copy', 1200);
+      });
 
-  const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-  conn.on('SessionStateUpdated', (state)=>{
-    playerCount.textContent = state.players.length;
-    playerList.innerHTML = '';
-    (state.players||[]).forEach(p => {
-      const li = document.createElement('li');
-      li.className='list-group-item d-flex justify-content-between align-items-center';
-      li.textContent = p.name;
-      const badge = document.createElement('span');
-      badge.className = 'badge bg-secondary rounded-pill';
-      badge.textContent = p.score ?? 0;
-      li.appendChild(badge);
-      playerList.appendChild(li);
-    });
-    statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
-    startNowBtn.disabled = false; scheduleBtn.disabled = false;
-  });
+      const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
+      conn.on('SessionStateUpdated', (state)=>{
+        playerCount.textContent = state.players.length;
+        playerList.innerHTML = '';
+        (state.players||[]).forEach(p => {
+          const li = document.createElement('li');
+          li.className='list-group-item d-flex justify-content-between align-items-center';
+          li.textContent = p.name;
+          const badge = document.createElement('span');
+          badge.className = 'badge bg-secondary rounded-pill';
+          badge.textContent = p.score ?? 0;
+          li.appendChild(badge);
+          playerList.appendChild(li);
+        });
+        statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
+        startNowBtn.disabled = false; scheduleBtn.disabled = false;
+      });
 
-  conn.start().then(async ()=>{
-    await conn.invoke('ClaimHost', pin);
-  }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
+      conn.start().then(async ()=>{
+        await conn.invoke('ClaimHost', pin);
+      }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
 
-  startNowBtn.addEventListener('click', async ()=>{
-    await conn.invoke('StartNextQuestionNow', pin);
-  });
-  scheduleBtn.addEventListener('click', async ()=>{
-    await conn.invoke('ScheduleNextQuestion', pin, 5);
-  });
-})();
+      startNowBtn.addEventListener('click', async ()=>{
+        await conn.invoke('StartNextQuestionNow', pin);
+      });
+      scheduleBtn.addEventListener('click', async ()=>{
+        await conn.invoke('ScheduleNextQuestion', pin, 5);
+      });
+    })();
 </script>

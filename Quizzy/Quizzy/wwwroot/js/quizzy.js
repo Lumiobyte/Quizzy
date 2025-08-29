@@ -19,8 +19,7 @@
     // ---------------- Shared: SignalR connection + helpers ----------------
 
     /** Create an unstarted SignalR connection to the game hub. */
-    function createConnection()
-    {
+    function createConnection() {
         return new signalR.HubConnectionBuilder()
             .withUrl("/gamehub")
             .withAutomaticReconnect()
@@ -72,15 +71,12 @@
     function makeTicker() {
         let id = null;
         return {
-            start(fn, ms)
-            {
+            start(fn, ms) {
                 this.stop();
                 id = setInterval(fn, ms);
             },
-            stop()
-            {
-                if (id)
-                {
+            stop() {
+                if (id) {
                     clearInterval(id); id = null;
                 }
             }
@@ -179,7 +175,7 @@
         }
 
         // Wire hub events
-        conn.on("sessionStateUpdated", render);
+        conn.on("SessionStateUpdated", render);
         conn.on("QuestionEnded", (summary) => {
             if (!resultsArea) return;
             const { correctIndex, optionCounts = [], leaderboard = [] } = summary;
@@ -214,8 +210,7 @@
             const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
             const dur = parseInt(qDur?.value ?? "20", 10) || 20;
 
-            if (!text || options.length < 2)
-            {
+            if (!text || options.length < 2) {
                 alert("Enter question and at least 2 options");
                 return;
             }
@@ -230,8 +225,7 @@
             const correct = parseInt(qCorrect?.value ?? "0", 10) || 0;
             const inSec = parseInt(qIn?.value ?? "10", 10) || 10;
 
-            if (!text || options.length < 2)
-            {
+            if (!text || options.length < 2) {
                 alert("Enter question and at least 2 options");
                 return;
             }
@@ -240,8 +234,7 @@
         });
 
         // End current question
-        endBtn?.addEventListener("click", async () =>
-        {
+        endBtn?.addEventListener("click", async () => {
             await conn.invoke("EndQuestion", sessionId);
         });
     })();
@@ -255,11 +248,12 @@
 
         // Form + UI elements
         const nameInput = $("pName");
-        const sessionInput = $("pession");
+        const sessionInput = $("pSession");
         const playArea = $("playArea");
         const pStatus = $("pStatus");
         const pQText = $("pQText");
         const pOptions = $("pOptions");
+        const waitingPane = $("waitingPane");
         const pQuestion = $("pQuestion");
         const pAnswered = $("pAnswered");
         const pScore = $("pScore");
@@ -352,7 +346,7 @@
         }
 
         // Hub wiring
-        conn.on("sessionStateUpdated", render);
+        conn.on("SessionStateUpdated", render);
 
         // Join form
         form.dataset.bound = "main";
@@ -360,15 +354,16 @@
             e.preventDefault();
             sessionId = sessionInput.value.trim().toUpperCase();
             myName = nameInput.value.trim();
-            if (!sessionId || !myName) return;
+            if (!sessionId || !myName) { return; }
             await conn.start();
             const userId = (window.GetFromLocalStorage && window.localStorageKeys)
                 ? GetFromLocalStorage(localStorageKeys.UserId)
                 : null;
             const userObj = userId ? { id: userId } : {};
             await conn.invoke("JoinAsPlayer", sessionId, myName, userObj);
-            show(playArea, true);
             show(form, false);
+            if (typeof waitingPane !== 'undefined' && waitingPane) { waitingPane.style.display = ''; }
+            show(playArea, false);
             setText(pStatus, "Joined — waiting for host…");
         });
     })();
