@@ -1,120 +1,211 @@
 @{
-    Layout = "_Layout";
-    var pin = (string)(ViewData["Pin"] ?? "");
-    ViewData["Title"] = "Quizzy Lobby";
+    ViewData["Title"] = "Host Lobby";
+    var pin = Context?.Request?.Query["pin"].ToString();
 }
-<main class="container">
-    <h1>Quiz Lobby</h1>
-    <div class="alert alert-info">
-        <strong>Session Code:</strong>
-        <span id="sessionPin">@pin</span>
+
+<div class="container py-4">
+    <h2 class="mb-3">Host Lobby</h2>
+
+    <div class="mb-3">
+        <div>Room PIN: <strong id="roomLabel">@pin</strong></div>
         <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
-        <div class="small text-muted">Players join via <code>/Player</code> and enter this code.</div>
+        <div id="statusEl" class="text-muted">Waiting for players…</div>
     </div>
 
     <div class="row">
-        <div class="col-md-6">
-            <h4>Players Joined (<span id="playerCount">0</span>)</h4>
+        <div class="col-12 col-lg-6">
+            <h5>Players Joined (<span id="playerCount">0</span>)</h5>
             <ul id="playerList" class="list-group"></ul>
         </div>
-        <div class="col-md-6">
-            <h4>Controls</h4>
-            <div class="d-flex gap-2 mb-3">
-                <button id="startNowBtn" class="btn btn-primary" disabled>Start Next Question Now</button>
-                <button id="scheduleBtn" class="btn btn-outline-secondary" disabled>Schedule in 5s</button>
+
+        <div class="col-12 col-lg-6">
+            <h5>Controls</h5>
+            <div class="d-flex gap-2 flex-wrap">
+                <button id="startNowBtn" class="btn btn-success" disabled>Start Next Question Now</button>
+                <button id="scheduleBtn" class="btn btn-outline-primary" disabled>Schedule in 5s</button>
+                <button id="endBtn" class="btn btn-outline-danger" disabled>End Question</button>
             </div>
-            <div id="status" class="text-muted">Waiting for players…</div>
-
-            <style>
-                .countdown-overlay {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0,0,0,0.85);
-                    display: none;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 9999;
-                }
-
-                .countdown-number {
-                    font-size: clamp(80px, 20vw, 240px);
-                    color: #fff;
-                    font-weight: 800;
-                    line-height: 1;
-                    animation: pop 1s ease-out infinite;
-                    text-shadow: 0 8px 30px rgba(0,0,0,0.5);
-                }
-
-                @@keyframes pop {
-                    0% {
-                        transform: scale(0.6);
-                        opacity: 0.6;
-                    }
-
-                    50% {
-                        transform: scale(1.1);
-                        opacity: 1;
-                    }
-
-                    100% {
-                        transform: scale(1.0);
-                        opacity: 0.9;
-                    }
-                }
-            </style>
-
-            <div id="hostCountdownOverlay" class="countdown-overlay">
-                <div id="hostCountdownNumber" class="countdown-number">3</div>
-            </div>
-
         </div>
     </div>
-</main>
 
+    <div id="upcomingBox" class="mt-3 alert alert-secondary" style="display:none;">
+        Next question starts in <strong><span id="hostNextIn">0</span>s</strong>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
 <script>
-    (function(){
-      const pin = document.getElementById('sessionPin').textContent.trim();
-      const copyBtn = document.getElementById('copyPin');
-      const playerList = document.getElementById('playerList');
-      const playerCount = document.getElementById('playerCount');
-      const statusEl = document.getElementById('status');
-      const startNowBtn = document.getElementById('startNowBtn');
-      const scheduleBtn = document.getElementById('scheduleBtn');
+    (function () {
+        function $(id) {
+            return document.getElementById(id);
+        }
 
-      copyBtn.addEventListener('click', async ()=>{
-        await navigator.clipboard.writeText(pin);
-        copyBtn.textContent='Copied!';
-        setTimeout(()=>copyBtn.textContent='Copy', 1200);
-      });
+        function secondsUntilUtc(targetUtc) {
+            if (!targetUtc) {
+                return 0;
+            }
 
-      const conn = new signalR.HubConnectionBuilder().withUrl("/gamehub").withAutomaticReconnect().build();
-      conn.on('SessionStateUpdated', (state)=>{
-        playerCount.textContent = state.players.length;
-        playerList.innerHTML = '';
-        (state.players||[]).forEach(p => {
-          const li = document.createElement('li');
-          li.className='list-group-item d-flex justify-content-between align-items-center';
-          li.textContent = p.name;
-          const badge = document.createElement('span');
-          badge.className = 'badge bg-secondary rounded-pill';
-          badge.textContent = p.score ?? 0;
-          li.appendChild(badge);
-          playerList.appendChild(li);
+            const target = new Date(targetUtc);
+            const diff = (target.getTime() - Date.now()) / 1000;
+
+            return Math.max(0, Math.floor(diff));
+        }
+
+        const pin = (new URLSearchParams(window.location.search)).get("pin");
+
+        const roomLabel = $("roomLabel");
+        const statusEl = $("statusEl");
+        const playerList = $("playerList");
+        const playerCount = $("playerCount");
+
+        const copyBtn = document.getElementById('copyPin');
+        const startNowBtn = $("startNowBtn");
+        const scheduleBtn = $("scheduleBtn");
+        const endBtn = $("endBtn");
+
+        const hostNextIn = $("hostNextIn");
+        const upcomingBox = $("upcomingBox");
+
+        let upcomingTimer = null;
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        copyBtn.addEventListener('click', async () =>
+        {
+            await navigator.clipboard.writeText(pin);
+            copyBtn.textContent='Copied!';
+            setTimeout(()=>copyBtn.textContent='Copy', 1200);
         });
-        statusEl.textContent = state.question ? 'Question live' : 'Waiting to start…';
-        startNowBtn.disabled = false; scheduleBtn.disabled = false;
-      });
 
-      conn.start().then(async ()=>{
-        await conn.invoke('ClaimHost', pin);
-      }).catch(err => { statusEl.textContent = 'Connection error: ' + (err?.message||err); });
+        connection.on("SessionStateUpdated", (state) => 
+        {
+            if (Array.isArray(state.players)) {
+                playerList.innerHTML = "";
 
-      startNowBtn.addEventListener('click', async () => {
-        await conn.invoke('ScheduleNextQuestion', pin, 3);
-      });
-      scheduleBtn.addEventListener('click', async ()=>{
-        await conn.invoke('ScheduleNextQuestion', pin, 5);
-      });
+                for (const player of state.players) {
+                    const li = document.createElement("li");
+                    li.className = "list-group-item";
+                    li.textContent = player.name ?? "(unnamed)";
+                    playerList.appendChild(li);
+                }
+
+                playerCount.textContent = String(state.players.length);
+            }
+
+            if (state.question) {
+                statusEl.textContent = "Question live";
+
+                if (upcomingBox) {
+                    upcomingBox.style.display = "none";
+                }
+
+                if (upcomingTimer) {
+                    clearInterval(upcomingTimer);
+                    upcomingTimer = null;
+                }
+
+                startNowBtn.disabled = true;
+                scheduleBtn.disabled = true;
+                endBtn.disabled = false;
+            } else {
+                if (state.upcoming) {
+                    statusEl.textContent = "Starting soon…";
+
+                    if (upcomingBox) {
+                        upcomingBox.style.display = "";
+                    }
+
+                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
+
+                    const tick = () => {
+                        const remain = secondsUntilUtc(targetUtc);
+                        if (hostNextIn) {
+                            hostNextIn.textContent = String(remain);
+                        }
+                    };
+
+                    if (upcomingTimer) {
+                        clearInterval(upcomingTimer);
+                    }
+
+                    tick();
+                    upcomingTimer = setInterval(tick, 250);
+
+                    startNowBtn.disabled = true;
+                    scheduleBtn.disabled = true;
+                    endBtn.disabled = true;
+                } else {
+                    statusEl.textContent = "Waiting to start…";
+
+                    if (upcomingBox) {
+                        upcomingBox.style.display = "none";
+                    }
+
+                    if (upcomingTimer) {
+                        clearInterval(upcomingTimer);
+                        upcomingTimer = null;
+                    }
+
+                    startNowBtn.disabled = false;
+                    scheduleBtn.disabled = false;
+                    endBtn.disabled = true;
+                }
+            }
+        });
+
+        connection.onclose(() => {
+            statusEl.textContent = "Disconnected. Reconnecting…";
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                if (!pin) {
+                    statusEl.textContent = "Missing or invalid PIN.";
+                    return;
+                }
+
+                roomLabel.textContent = pin;
+
+                await connection.start();
+
+                await connection.invoke("ClaimHost", pin);
+
+                startNowBtn.disabled = false;
+                scheduleBtn.disabled = false;
+
+                startNowBtn.addEventListener("click", async () => 
+                {
+                    try 
+                    {
+                        await connection.invoke("ScheduleNextQuestion", pin, 3);
+                    } 
+                    catch (error) 
+                    {
+                        // Fallback: if ScheduleNextQuestion isn't on the server, just start immediately.
+                        await connection.invoke("StartNextQuestionNow", pin);
+                    }
+                });
+
+                scheduleBtn.addEventListener("click", async () => 
+                {
+                    await connection.invoke("ScheduleNextQuestion", pin, 5);
+                });
+
+                endBtn.addEventListener("click", async () => 
+                {
+                    await connection.invoke("EndCurrentQuestion", pin);
+                });
+            } 
+            catch (error) 
+            {
+                console.error("Lobby init error:", error);
+                statusEl.textContent = "Failed to connect.";
+            }
+        });
     })();
 </script>

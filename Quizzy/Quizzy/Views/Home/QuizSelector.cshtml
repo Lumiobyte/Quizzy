@@ -30,15 +30,57 @@
         const searchButton = document.getElementById("search-button");
         const quizzesContainer = document.getElementById("quizes-container");
 
+        function asString(value) {
+            return (typeof value === "string") ? value : "";
+        }
+
+        function coalesce(...values) {
+            for (const value of values) {
+                if (value !== null && value !== undefined) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        function extractAuthorName(quiz) {
+            // Try common property names without breaking if they don't exist.
+            const authorName = coalesce(
+                quiz?.authorName,
+                quiz?.ownerName,
+                quiz?.createdByName,
+                quiz?.createdByUserName
+            );
+
+            return asString(authorName);
+        }
+
+        function extractQuestionCount(quiz) {
+            // Count the Questions array.
+
+            const list = quiz?.questions;
+            if (Array.isArray(list)) {
+                return list.length;
+            }
+
+            return 0;
+        }
+
         function quizCardHtml(quiz) {
-            const title = quiz?.title ?? quiz?.name ?? "Untitled Quiz";
-            const description = quiz?.description ?? "";
-            const quizId = quiz?.id ?? quiz?.quizId ?? "";
+            const title = asString(quiz?.title ?? quiz?.name) || "Untitled Quiz";
+            const description = asString(quiz?.description);
+            const quizId = asString(quiz?.id ?? quiz?.quizId);
+
+            const authorName = extractAuthorName(quiz) || "Unknown author";
+            const questionCount = extractQuestionCount(quiz);
+
+            const metaLine = `Author: ${authorName} • ${questionCount} question${questionCount === 1 ? "" : "s"}`;
 
             return `
     <div class="card m-2 text-start">
       <div class="card-body">
         <h5 class="card-title mb-2">${title}</h5>
+        <div class="text-muted mb-2">${metaLine}</div>
         ${description ? `<p class="card-text text-muted">${description}</p>` : ""}
         <div class="d-flex gap-2">
           <button class="btn btn-success start-session" data-quiz-id="${quizId}">Start Session</button>
@@ -65,7 +107,6 @@
             for (const startButton of startButtons) {
                 startButton.addEventListener("click", async (event) => {
                     const buttonElement = event.currentTarget;
-
                     const quizId = buttonElement.getAttribute("data-quiz-id");
 
                     if (!quizId) {
@@ -87,7 +128,6 @@
                             await connection.start();
                         }
 
-                        // Create a live session for this quiz and claim host
                         const pin = await connection.invoke("CreateAndClaimSessionForQuiz", hostUserId, quizId);
 
                         if (pin && typeof pin === "string" && pin.length > 0) {
@@ -110,7 +150,6 @@
                 const searchText = searchTextInput?.value ?? "";
                 const mineOnly = !!mineOnlyCheckbox?.checked;
 
-                // Adjust the endpoint if your controller expects query params for search / mineOnly
                 const response = await fetch("@Url.Content("~/QuizSelector/GetAll")", {
                     method: "GET",
                     headers: {
@@ -128,23 +167,25 @@
                     quizzes = [];
                 }
 
-                // Client-side filtering (optional; remove if server already filters)
+                // Client-side filtering (optional).
                 let filtered = quizzes;
 
                 if (searchText && searchText.trim().length > 0) {
                     const term = searchText.trim().toLowerCase();
+
                     filtered = filtered.filter((quiz) => {
-                        const title = (quiz?.title ?? quiz?.name ?? "").toLowerCase();
-                        const description = (quiz?.description ?? "").toLowerCase();
+                        const title = asString(quiz?.title ?? quiz?.name).toLowerCase();
+                        const description = asString(quiz?.description).toLowerCase();
                         return title.includes(term) || description.includes(term);
                     });
                 }
 
                 if (mineOnly) {
                     const myUserId = GetFromLocalStorage(localStorageKeys.UserId);
+
                     if (myUserId) {
                         filtered = filtered.filter((quiz) => {
-                            const ownerId = quiz?.ownerUserId ?? quiz?.createdByUserId ?? null;
+                            const ownerId = coalesce(quiz?.ownerUserId, quiz?.createdByUserId);
                             return ownerId === myUserId;
                         });
                     }
@@ -153,6 +194,7 @@
                 renderQuizzes(filtered);
             } catch (error) {
                 console.error("Error loading quizzes:", error);
+
                 quizzesContainer.innerHTML =
                     `<div class="alert alert-danger">Failed to load quizzes. Please try again.</div>`;
             }
@@ -164,7 +206,6 @@
             });
         }
 
-        // Initial load
         await loadQuizzes();
 </script>
 

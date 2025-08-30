@@ -263,7 +263,7 @@ namespace Quizzy.Web.Hubs
                 }
                 catch (Exception exception)
                 {
-                    // Optional: log exception (e.g., _logger.LogError(exception, "Failed to start next question for {Pin}", gamePin))
+                    Console.WriteLine($"{exception}\nFailed to start next question for {gamePin}");
                 }
             });
         }
