@@ -9,19 +9,9 @@ namespace Quizzy.Core.Services
 {
     public class ReportingService : IReportingService
     {
-        public void SendReportsToUser(QuizSession session, UserAccount user)
+        public async Task SendReportsForSession(QuizSession session)
         {
-
-        }
-
-        public byte[] GenerateReportPDF(QuizSession session)
-        {
-            return new byte[0];
-        }
-
-        public void GenerateInGameReport(QuizSession session)
-        {
-
+            
         }
     }
 }

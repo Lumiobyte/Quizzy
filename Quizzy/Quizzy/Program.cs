@@ -7,7 +7,7 @@ namespace Quizzy
 {
     public class Program
     {
-        static bool seedOnStartup = false;
+        static bool seedOnStartup = true;
 
         public static void Main(string[] args)
         {
@@ -22,6 +22,7 @@ namespace Quizzy
             builder.Services.AddScoped<ILoginService, LoginService>();
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
+            builder.Services.AddScoped<IEmailService, EmailService>();
 
             var app = builder.Build();
 
