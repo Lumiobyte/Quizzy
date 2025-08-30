@@ -14,11 +14,6 @@ namespace Quizzy.Core.Services
             return user.Id;
         }
 
-        public UserAccount GetUserDetails(int id)
-        {
-            return new UserAccount();
-        }
-
         public async Task<Guid> CreateNewUser(string username, string password, string email)
         {
             ValidateDetails(username, password, email);
@@ -39,6 +34,7 @@ namespace Quizzy.Core.Services
         {
             var users = repository.UserAccounts.GetAllAsync().Result;
             if (users.Any(u => u.Username == username)) throw new ArgumentException("Username already exists");
+            if (users.Any(u => u.Email == email)) throw new ArgumentException("Email already exists");
             if (string.IsNullOrWhiteSpace(username)) throw new ArgumentException("Username cannot be empty");
             if (string.IsNullOrWhiteSpace(password) || password == "empty") throw new ArgumentException("Password cannot be empty"); // The password cannot be "empty"
             try { new MailAddress(email); }

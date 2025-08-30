@@ -16,6 +16,12 @@ namespace Quizzy.Core.Services
                 $"The quiz session '{session.Quiz.Title}' has concluded. You can view the results in your dashboard.",
                 attachments.ToArray()
             );
+
+            foreach (var file in attachments)
+            {
+                try { if (File.Exists(file)) File.Delete(file); }
+                catch { /* um :3 */ }
+            }
         }
 
         async Task<string> GenerateReport(QuizSession session) // If you want a button to download the report, make this public and call it from the controller. If you do this, make sure to delete the report file generated after
