@@ -4,7 +4,7 @@ using System.Net.Mail;
 
 namespace Quizzy.Core.Services
 {
-    public class LoginService(IUnitOfWork repository) : ILoginService
+    public class LoginService(IUnitOfWork repository, IEmailService emailService) : ILoginService
     {
         public async Task<Guid?> LoginUser(string username, string password)
         {
@@ -14,30 +14,27 @@ namespace Quizzy.Core.Services
             return user.Id;
         }
 
-        public UserAccount GetUserDetails(int id)
-        {
-            return new UserAccount();
-        }
-
         public async Task<Guid> CreateNewUser(string username, string password, string email)
         {
             ValidateDetails(username, password, email);
-            var id = Guid.NewGuid();
-            await repository.UserAccounts.AddAsync(new UserAccount
+            var newAccount = new UserAccount
             {
-                Id = id,
+                Id = Guid.NewGuid(),
                 Username = username,
                 Password = password,
                 Email = email
-            });
+            };
+            await repository.UserAccounts.AddAsync(newAccount);
             await repository.SaveChangesAsync();
-            return id;
+            emailService.SendEmailAsync(newAccount, "Welcome to Quizzy!", $"Hello {username},<br /><br />Thank you for registering at Quizzy!<br /><br />Your account has been created successfully. <br />If you did not want to create an account under this email, please reply to this email and someone might check it eventually"); // Not awaited to avoid delays because its slow
+            return newAccount.Id;
         }
 
         void ValidateDetails(string username, string password, string email)
         {
             var users = repository.UserAccounts.GetAllAsync().Result;
             if (users.Any(u => u.Username == username)) throw new ArgumentException("Username already exists");
+            if (users.Any(u => u.Email == email)) throw new ArgumentException("Email already exists");
             if (string.IsNullOrWhiteSpace(username)) throw new ArgumentException("Username cannot be empty");
             if (string.IsNullOrWhiteSpace(password) || password == "empty") throw new ArgumentException("Password cannot be empty"); // The password cannot be "empty"
             try { new MailAddress(email); }

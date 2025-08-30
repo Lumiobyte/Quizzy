@@ -9,7 +9,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.8" />
+    <PackageReference Include="QuestPDF" Version="2025.7.1" />
     <PackageReference Include="Webmilio.Commons.ComponentModel.DataAnnotations" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\ReportCache\" />
   </ItemGroup>
 
 </Project>
