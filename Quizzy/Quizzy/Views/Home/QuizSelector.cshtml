@@ -42,85 +42,28 @@
             }
             return null;
         }
-
-        function extractAuthorName(quiz) {
-            // Try common property names without breaking if they don't exist.
-            const authorName = coalesce(
-                quiz?.authorName,
-                quiz?.ownerName,
-                quiz?.createdByName,
-                quiz?.createdByUserName
-            );
-
-            return asString(authorName);
-        }
-
-        function extractQuestionCount(quiz) {
-            // Count the Questions array.
-
-            const list = quiz?.questions;
-            if (Array.isArray(list)) {
-                return list.length;
-            }
-
-            return 0;
-        }
-
-        function quizCardHtml(quiz) {
-            const title = asString(quiz?.title ?? quiz?.name) || "Untitled Quiz";
-            const description = asString(quiz?.description);
-            const quizId = asString(quiz?.id ?? quiz?.quizId);
-
-            const authorName = extractAuthorName(quiz) || "Unknown author";
-            const questionCount = extractQuestionCount(quiz);
-
-            const metaLine = `Author: ${authorName} • ${questionCount} question${questionCount === 1 ? "" : "s"}`;
-
-            return `
-    <div class="card m-2 text-start">
-      <div class="card-body">
-        <h5 class="card-title mb-2">${title}</h5>
-        <div class="text-muted mb-2">${metaLine}</div>
-        ${description ? `<p class="card-text text-muted">${description}</p>` : ""}
-        <div class="d-flex gap-2">
-          <button class="btn btn-success start-session" data-quiz-id="${quizId}">Start Session</button>
-        </div>
-      </div>
-    </div>`;
-        }
-    function renderQuizzes() {
-        const container = document.getElementById('quizes-container');
-		const userId = GetFromLocalStorage(localStorageKeys.UserId);
-        if (!Array.isArray(quizzes)) quizzes = [];
-        let html = '';
-        quizzes.forEach((quiz) => {
-            let editButton = '';
-            if (quiz.authorId == userId) editButton = `<a href="@Url.Content("~/Home/CreateQuiz")?id=${encodeURIComponent(quiz.id)}" class="btn btn-secondary">Edit Quiz</a>`;
-            html += `
-            <div class="card-body mb-3" style="width: 18rem; display: inline-block; margin: 0.5rem;">
-                <h5 class="card-title">${quiz.name ?? 'Untitled'}</h5>
-                <div>By ${quiz.authorName ?? 'Unknown'} - ${quiz.questionsNum ?? 0} questions long</div>
-                <div class="inline-block">
-					${editButton}
-                    <button class="btn btn-primary start-session-btn" data-id="${quiz.id}">Start Session</button>
-                </div>
-            </div>`;
-        });
-
         function renderQuizzes(quizzes) {
-            if (!Array.isArray(quizzes)) {
-                quizzes = [];
-            }
-
-            let html = "";
-
-            for (const quiz of quizzes) {
-                html += quizCardHtml(quiz);
-            }
+            const container = document.getElementById('quizes-container');
+            const userId = GetFromLocalStorage(localStorageKeys.UserId);
+            if (!Array.isArray(quizzes)) quizzes = [];
+            let html = '';
+            quizzes.forEach((quiz) => {
+                let editButton = '';
+                if (quiz.authorId == userId) editButton = `<a href="@Url.Content("~/Home/CreateQuiz")?id=${encodeURIComponent(quiz.id)}" class="btn btn-secondary">Edit Quiz</a>`;
+                html += `
+                <div class="card-body mb-3" style="width: 18rem; display: inline-block; margin: 0.5rem;">
+                    <h5 class="card-title">${quiz.name ?? 'Untitled'}</h5>
+                    <div>By ${quiz.authorName ?? 'Unknown'} - ${quiz.questionsNum ?? 0} questions long</div>
+                    <div class="inline-block">
+                        ${editButton}
+                    <button class="btn btn-primary start-session-btn" data-quiz-id="${quiz.id}">Start Session</button>
+                    </div>
+                </div>`;
+            });
 
             quizzesContainer.innerHTML = html;
 
-            const startButtons = quizzesContainer.querySelectorAll(".start-session");
+            const startButtons = quizzesContainer.querySelectorAll(".start-session-btn");
 
             for (const startButton of startButtons) {
                 startButton.addEventListener("click", async (event) => {

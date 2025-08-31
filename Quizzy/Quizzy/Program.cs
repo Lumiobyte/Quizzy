@@ -2,7 +2,6 @@ using QuestPDF.Infrastructure;
 using Quizzy.Core;
 using Quizzy.Core.Repositories;
 using Quizzy.Core.Services;
-using Quizzy.Core.Repositories;
 using Quizzy.Web.Hubs;
 using Quizzy.Web.Services;
 
