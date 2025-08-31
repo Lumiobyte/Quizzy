@@ -88,6 +88,24 @@
       </div>
     </div>`;
         }
+    function renderQuizzes() {
+        const container = document.getElementById('quizes-container');
+		const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        if (!Array.isArray(quizzes)) quizzes = [];
+        let html = '';
+        quizzes.forEach((quiz) => {
+            let editButton = '';
+            if (quiz.authorId == userId) editButton = `<a href="@Url.Content("~/Home/CreateQuiz")?id=${encodeURIComponent(quiz.id)}" class="btn btn-secondary">Edit Quiz</a>`;
+            html += `
+            <div class="card-body mb-3" style="width: 18rem; display: inline-block; margin: 0.5rem;">
+                <h5 class="card-title">${quiz.name ?? 'Untitled'}</h5>
+                <div>By ${quiz.authorName ?? 'Unknown'} - ${quiz.questionsNum ?? 0} questions long</div>
+                <div class="inline-block">
+					${editButton}
+                    <button class="btn btn-primary start-session-btn" data-id="${quiz.id}">Start Session</button>
+                </div>
+            </div>`;
+        });
 
         function renderQuizzes(quizzes) {
             if (!Array.isArray(quizzes)) {

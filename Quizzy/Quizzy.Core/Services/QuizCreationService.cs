@@ -1,24 +1,25 @@
-﻿using Quizzy.Core.Entities;
+﻿using Quizzy.Core.DTOs;
+using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
-using Quizzy.Models;
 
 namespace Quizzy.Core.Services
 {
     public class QuizCreationService(IUnitOfWork repository) : IQuizCreationService
     {
-        public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId, bool createNew)
+        public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-            if (createNew && model.QuizSourceId is not null) await UpdateQuiz(model, creatorId);
-            else await AddNewQuizToDB(model, creatorId);
+            model.QuizSourceId = Guid.NewGuid();
+            await AddNewQuizToDB(model, creatorId);
         }
 
         public async Task UpdateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-            repository.Quizzes.Update(CreateQuizFromModel(model, creatorId));
-            await repository.SaveChangesAsync();
+            if (model.QuizSourceId is null) throw new ArgumentException("QuizSourceId cannot be null when updating a quiz.");
+            await DeleteQuiz(model.QuizSourceId!.Value);
+            await AddNewQuizToDB(model, creatorId);
         }
 
-        public async Task DeleteQuiz(Guid id)
+        async Task DeleteQuiz(Guid id)
         {
             await repository.Quizzes.Remove(id);
             await repository.SaveChangesAsync();
@@ -42,6 +43,7 @@ namespace Quizzy.Core.Services
                 {
                     Id = Guid.NewGuid(),
                     Text = q.Text,
+                    QuestionType = q.Answers.Any(a => a.IsCorrect) ? Enums.QuestionType.MultipleChoice : Enums.QuestionType.ShortAnswer,
                     Answers = q.Answers.Select(a => new QuizAnswer
                     {
                         Id = Guid.NewGuid(),
@@ -56,6 +58,7 @@ namespace Quizzy.Core.Services
                 foreach (var answer in question.Answers)
                 {
                     answer.QuestionId = question.Id;
+                    if (question.QuestionType == Enums.QuestionType.ShortAnswer) answer.IsCorrect = true;
                 }
             }
             return quiz;

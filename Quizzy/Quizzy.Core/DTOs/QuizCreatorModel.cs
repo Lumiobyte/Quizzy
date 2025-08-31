@@ -1,17 +1,33 @@
+using Quizzy.Core.Entities;
+using Quizzy.Core.Enums;
 using System.Text.Json;
 
-namespace Quizzy.Models
+namespace Quizzy.Core.DTOs
 {
     public class QuizCreatorModel
     {
         public QuizCreatorModel() { }
 
-        public QuizCreatorModel(Guid? id)
+        public QuizCreatorModel(Quiz quiz)
         {
-            QuizSourceId = id;
-            if (id is not null)
+            QuizSourceId = quiz?.Id ?? null;
+            if (QuizSourceId is not null && quiz is not null)
             {
-                // Get data from db
+                Title = quiz.Title;
+                Questions = quiz.Questions.Select(q => new QuestionModel
+                {
+                    Text = q.Text,
+                    Answers = q.Answers.Select(a => new AnswerModel
+                    {
+                        Text = a.Text,
+                        IsCorrect = q.QuestionType == QuestionType.MultipleChoice ? a.IsCorrect : false,
+                    }).ToList()
+                }).ToList();
+            }
+            else
+            {
+                Title = string.Empty;
+                Questions = new();
             }
         }
 
@@ -38,17 +54,5 @@ namespace Quizzy.Models
         public string Title { get; set; } = string.Empty;
         public List<QuestionModel> Questions { get; set; } = new();
         public Guid? QuizSourceId { get; set; } = null; // If not null, this quiz is a copy of another quiz and can be saved as or updated
-
-        public class QuestionModel
-        {
-            public string Text { get; set; }
-            public List<AnswerModel> Answers { get; set; }
-        }
-
-        public class AnswerModel
-        {
-            public string Text { get; set; }
-            public bool IsCorrect { get; set; }
-        }
     }
 }

@@ -12,17 +12,38 @@
 <script type="module">
     import { GetFromLocalStorage, localStorageKeys, SetLocalStorage } from '/js/utils.js';
 
+    function logout() {
+        SetLocalStorage(localStorageKeys.UserId, null);
+        location.reload();
+	}
+
+    async function validateStoredUserId() {
+        const id = GetFromLocalStorage(localStorageKeys.UserId);
+        if (!id) return;
+
+        try {
+            const res = await fetch('@Url.Content("~/auth/checkIdInDb")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(id)
+            });
+
+            if (!res.ok) logout()
+        } catch {
+           logout()
+        }
+    }
+
     if (GetFromLocalStorage(localStorageKeys.UserId)) { // Join quiz is lockled behind an account atm. To move it to front page, you can put it in either or hardcode the html
-        document.getElementById("user-options").innerHTML = ` 
+        document.getElementById("user-options").innerHTML = `
             <a class="btn text-dark btn-primary nav-link" href="/Player">Join a Quiz</a>
             <a class="btn text-dark btn-primary nav-link" href="/Home/CreateQuiz">Create a Quiz</a>
             <a class="btn text-dark btn-primary nav-link" href="/Home/QuizSelector">Search Quizzes</a>
             <a class="btn text-dark btn-danger" href="#" id="logoutButton">Logout</a>
         `;
-        document.getElementById("logoutButton").addEventListener("click", function() {
-            SetLocalStorage(localStorageKeys.UserId, null);
-            location.reload();
-        });
+        document.getElementById("logoutButton").addEventListener("click", logout)
+
+        validateStoredUserId();
     } else {
         document.getElementById("user-options").innerHTML = `
             <a class="btn btn-primary text-dark nav-link" href="/Home/Login">Login</a>

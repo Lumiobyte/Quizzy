@@ -1,18 +1,13 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Quizzy.Core.Repositories;
+using Quizzy.Core.DTOs;
 using Quizzy.Models;
 
 namespace Quizzy.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(IUnitOfWork repository) : Controller
     {
-        private readonly ILogger<HomeController> _logger;
-
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
-
         public IActionResult Index()
         {
             return View();
@@ -38,27 +33,29 @@ namespace Quizzy.Controllers
             return View();
         }
 
-        public IActionResult CreateQuiz(Guid? id, string? import = null)
+        public IActionResult CreateQuiz(Guid? id = null, string? import = null)
         {
-            QuizCreatorModel quiz;
+            QuizCreatorModel model;
 
             if (id is not null)
             {
-                quiz = new QuizCreatorModel(id);
+                // Load quiz with author/questions/answers to prefill
+                var quizzes = repository.Quizzes.GetAllWithDetailsAsync().GetAwaiter().GetResult();
+                var quiz = quizzes.FirstOrDefault(q => q.Id == id.Value);
+                model = quiz is not null
+                    ? new QuizCreatorModel(quiz)
+                    : new QuizCreatorModel();
             }
             else if (!string.IsNullOrEmpty(import))
             {
                 var json = System.Text.Encoding.UTF8.GetString(
                     Convert.FromBase64String(Uri.UnescapeDataString(import))
                 );
-                quiz = new QuizCreatorModel(json);
+                model = new QuizCreatorModel(json);
             }
-            else
-            {
-                quiz = new QuizCreatorModel();
-            }
+            else model = new QuizCreatorModel();
 
-            return View(quiz);
+            return View(model);
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

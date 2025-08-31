@@ -1,13 +1,12 @@
-﻿using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.AspNetCore.Mvc;
-using Quizzy.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using Quizzy.Core.Services;
+using Quizzy.Core.Repositories;
 
 namespace Quizzy.Controllers
 {
     [ApiController]
     [Route("auth")]
-    public class AuthController(ILoginService loginService) : ControllerBase
+    public class AuthController(ILoginService loginService, IUnitOfWork repository) : ControllerBase
     {
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -32,6 +31,14 @@ namespace Quizzy.Controllers
             }
 
             return Ok(new { id, message });
+        }
+
+        [HttpPost("checkIdInDb")]
+        public async Task<IActionResult> Login([FromBody] Guid id)
+        {
+            var user = await repository.UserAccounts.GetByIdAsync(id);
+            if (user == null) return BadRequest("Id not found in database");
+            return Ok();
         }
     }
 
