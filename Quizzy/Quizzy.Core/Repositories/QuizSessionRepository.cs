@@ -20,7 +20,12 @@ namespace Quizzy.Core.Repositories
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<QuizQuestion?> GetNextQuestion(QuizSession session, int currentOrderIndex)
+        public QuizQuestion? GetFirstQuestion(QuizSession session)
+        {
+            return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == session.QuestionOrderList.First());
+        }
+
+        public QuizQuestion? GetNextQuestion(QuizSession session, int currentOrderIndex)
         {
             return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == GetNextQuestionIndex(currentOrderIndex, session.QuestionOrderList));
         }
