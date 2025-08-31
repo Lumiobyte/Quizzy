@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Quizzy.Core.Repositories;
+using Quizzy.Core.DTOs;
 using Quizzy.Models;
 
 namespace Quizzy.Controllers

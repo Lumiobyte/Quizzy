@@ -1,4 +1,4 @@
-﻿@model Quizzy.Models.QuizCreatorModel
+﻿@model Quizzy.Core.DTOs.QuizCreatorModel
 
 <button type="button" id="importJsonBtn">Import from JSON</button>
 <input type="file" id="importJsonInput" accept=".json,application/json" style="display:none;" />
@@ -32,8 +32,14 @@
                     </div>
                 }
             </div>
-            <button type="button" class="add-multichoice-answer-btn" data-qid="@i">Add Multi-Choice Answer</button>
-            <button type="button" class="add-short-answer-btn" data-qid="@i">Add Short Answer</button>
+            @if (isMultiChoice)
+            {
+                <button type="button" class="add-multichoice-answer-btn" data-qid="@i">Add answer</button>
+            }
+            else
+            {
+                <button type="button" class="add-short-answer-btn" data-qid="@i">Add answer</button>
+            }
             <br /><br />
         </div>
     }
