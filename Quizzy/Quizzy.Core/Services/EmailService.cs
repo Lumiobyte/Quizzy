@@ -6,7 +6,7 @@ namespace Quizzy.Core.Services
 {
     public class EmailService : IEmailService
     {
-        static bool SendEmailsEnabled = false; // Set to false to disable email sending (Because i dont want to be spammed)
+        static bool SendEmailsEnabled = false; // Set to false to disable email sending because i dont want to be spammed and there's a limit
 
         public async Task SendEmailAsync(UserAccount reciever, string subject, string body, string[]? attachments = null)
         {

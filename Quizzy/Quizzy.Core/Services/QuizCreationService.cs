@@ -6,10 +6,10 @@ namespace Quizzy.Core.Services
 {
     public class QuizCreationService(IUnitOfWork repository) : IQuizCreationService
     {
-        public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId, bool createNew)
+        public async Task GenerateQuiz(QuizCreatorModel model, Guid creatorId)
         {
-            if (!createNew && model.QuizSourceId is not null) await UpdateQuiz(model, creatorId);
-            else await AddNewQuizToDB(model, creatorId);
+            model.QuizSourceId = Guid.NewGuid();
+            await AddNewQuizToDB(model, creatorId);
         }
 
         public async Task UpdateQuiz(QuizCreatorModel model, Guid creatorId)
@@ -19,7 +19,7 @@ namespace Quizzy.Core.Services
             await AddNewQuizToDB(model, creatorId);
         }
 
-        public async Task DeleteQuiz(Guid id)
+        async Task DeleteQuiz(Guid id)
         {
             await repository.Quizzes.Remove(id);
             await repository.SaveChangesAsync();

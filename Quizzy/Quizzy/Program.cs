@@ -1,17 +1,18 @@
-using Microsoft.AspNetCore.Authentication;
+using QuestPDF.Infrastructure;
 using Quizzy.Core;
-using Quizzy.Core.Services;
 using Quizzy.Core.Repositories;
+using Quizzy.Core.Services;
 
 namespace Quizzy
 {
     public class Program
     {
-        static bool seedOnStartup = true;
+        static bool seedOnStartup = false;
 
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            QuestPDF.Settings.License = LicenseType.Community;
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();

@@ -5,7 +5,7 @@ using QuestPDF.Infrastructure;
 
 namespace Quizzy.Core.Services
 {
-    public class ReportingService(IEmailService emailService) : IReportingService // I have no idea if this works in practice :3
+    public class ReportingService(IEmailService emailService) : IReportingService
     {
         public async Task SendReportsForSession(QuizSession session) // This assumes that the session passed in contains ALL details of the quiz, and that no loading from DB is necessary
         {
@@ -17,14 +17,14 @@ namespace Quizzy.Core.Services
                 attachments.ToArray()
             );
 
-            foreach (var file in attachments)
+            foreach (var file in attachments) // This should only run once but just in case
             {
                 try { if (File.Exists(file)) File.Delete(file); }
-                catch { /* um :3 */ }
+                catch { /* uh i guess it isnt there :/ */ }
             }
         }
 
-        async Task<string> GenerateReport(QuizSession session) // If you want a button to download the report, make this public and call it from the controller. If you do this, make sure to delete the report file generated after
+        public async Task<string> GenerateReport(QuizSession session) // Make sure that the resulting file is deleted after use to avoid unnessessary clogging
         {
             var orderedPlayers = GetPlayersByScoreOrder(session);
             var quizTitle = session.Quiz?.Title ?? "Untitled";
@@ -66,7 +66,7 @@ namespace Quizzy.Core.Services
                             {
                                 table.ColumnsDefinition(columns =>
                                 {
-                                    columns.ConstantColumn(36);   // Placement/score
+                                    columns.ConstantColumn(36);   // Placement/Score
                                     columns.RelativeColumn(3);    // Player
                                     columns.ConstantColumn(80);   // Correct
                                 });

@@ -1,8 +1,8 @@
-using System.Text.Json;
 using Quizzy.Core.Entities;
 using Quizzy.Core.Enums;
+using System.Text.Json;
 
-namespace Quizzy.Models
+namespace Quizzy.Core.DTOs
 {
     public class QuizCreatorModel
     {
@@ -54,17 +54,5 @@ namespace Quizzy.Models
         public string Title { get; set; } = string.Empty;
         public List<QuestionModel> Questions { get; set; } = new();
         public Guid? QuizSourceId { get; set; } = null; // If not null, this quiz is a copy of another quiz and can be saved as or updated
-
-        public class QuestionModel
-        {
-            public string Text { get; set; }
-            public List<AnswerModel> Answers { get; set; }
-        }
-
-        public class AnswerModel
-        {
-            public string Text { get; set; }
-            public bool IsCorrect { get; set; }
-        }
     }
 }

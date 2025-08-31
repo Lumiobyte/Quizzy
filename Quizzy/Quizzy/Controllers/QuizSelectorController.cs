@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Quizzy.Core.Entities;
+using Quizzy.Core.DTOs;
 using Quizzy.Core.Repositories;
 
 namespace Quizzy.Controllers
@@ -49,24 +49,6 @@ namespace Quizzy.Controllers
                 .Where(q => q.Title != null && q.Title.ToLowerInvariant().Contains(term))
                 .Select(q => new QuizResponse(q))
                 .ToList());
-        }
-
-        class QuizResponse
-        {
-            public QuizResponse(Quiz quiz)
-            {
-                name = quiz.Title ?? "Untitled";
-                authorName = quiz.QuizAuthor?.Username ?? "Unknown";
-                authorId = quiz.QuizAuthorId;
-                questionsNum = quiz.Questions?.Count ?? 0;
-                id = quiz.Id;
-            }
-
-            public string name { get; set; }
-            public string authorName { get; set; }
-            public Guid authorId { get; set; }
-            public int questionsNum { get; set; }
-            public Guid id { get; set; }
         }
     }
 }

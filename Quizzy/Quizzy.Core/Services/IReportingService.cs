@@ -10,5 +10,6 @@ namespace Quizzy.Core.Services
     public interface IReportingService
     {
         public Task SendReportsForSession(QuizSession session);
+        public Task<string> GenerateReport(QuizSession session);
     }
 }
