@@ -1,6 +1,6 @@
-﻿using Quizzy.Core.Entities;
+﻿using Quizzy.Core.DTOs;
+using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
-using Quizzy.Models;
 
 namespace Quizzy.Core.Services
 {

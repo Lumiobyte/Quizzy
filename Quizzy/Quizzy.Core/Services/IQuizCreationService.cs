@@ -1,4 +1,4 @@
-﻿using Quizzy.Models;
+﻿using Quizzy.Core.DTOs;
 using System;
 
 namespace Quizzy.Core.Services

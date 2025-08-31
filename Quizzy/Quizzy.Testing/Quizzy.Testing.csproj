@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quizzy.Core\Quizzy.Core.csproj" />
+    <ProjectReference Include="..\Quizzy\Quizzy.Web.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.AspNetCore.Mvc;
-using Quizzy.Models;
+﻿using Microsoft.AspNetCore.Mvc;
 using Quizzy.Core.Services;
 using Quizzy.Core.Repositories;
 

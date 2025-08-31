@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Quizzy.Core.DTOs;
 using Quizzy.Core.Repositories;
 using Quizzy.Core.Services;
-using Quizzy.Models;
 
 namespace Quizzy.Controllers
 {
