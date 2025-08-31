@@ -8,6 +8,8 @@ namespace Quizzy.Core.Entities
         public Guid Id { get; set; }
         public string Text { get; set; }
 
+        public int OrderIndex { get; set; }
+
         public Guid QuizId { get; set; }
         public Quiz Quiz { get; set; }
 
