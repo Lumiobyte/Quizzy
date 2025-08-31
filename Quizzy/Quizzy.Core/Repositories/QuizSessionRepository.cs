@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Quizzy.Core.Entities;
-using System.Collections.ObjectModel;
-using System.Runtime.InteropServices.Marshalling;
+using Quizzy.Core.Extensions;
 
 namespace Quizzy.Core.Repositories
 {
@@ -28,7 +27,12 @@ namespace Quizzy.Core.Repositories
 
         public override async Task AddAsync(QuizSession session)
         {
-            if(string.IsNullOrWhiteSpace(session.))
+            if (string.IsNullOrWhiteSpace(session.QuestionOrder))
+            {
+                session.QuestionOrder = session.Quiz.GetQuestionOrder();
+            }
+
+            await base.AddAsync(session);
         }
 
         private int GetNextQuestionIndex(int currentQuestionIndex, List<int> order)
