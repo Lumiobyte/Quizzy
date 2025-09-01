@@ -1,4 +1,6 @@
-﻿namespace Quizzy.Core.Entities
+﻿using Quizzy.Core.Enums;
+
+namespace Quizzy.Core.Entities
 {
     public class QuizPlayer
     {
@@ -13,6 +15,10 @@
         public QuizSession QuizSession { get; set; }
 
         public ICollection<QuizAnswer> Answers { get; set; } = new List<QuizAnswer>();
+
+        public ScoringStrategyType ScoringStrategy { get; set; }
+
+        public string ScoringData { get; set; } = ""; // Scoring strategies can store different data here if they need it to persist between requests e.g. streak data
 
     }
 }
