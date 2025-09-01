@@ -3,6 +3,8 @@
 }
 
 <div class="text-center">
+    <img class="logo" src="@Url.Content("~/QuizzyLogo.png")" alt="Quizzy Logo" />
+
     <h1 class="display-4">Welcome to Quizzy!</h1>
     <p>We are definitely not a ripoff of Kahoot!</p>
 
@@ -15,7 +17,7 @@
     function logout() {
         SetLocalStorage(localStorageKeys.UserId, null);
         location.reload();
-	}
+    }
 
     async function validateStoredUserId() {
         const id = GetFromLocalStorage(localStorageKeys.UserId);
@@ -65,5 +67,11 @@
 
     .btn {
         display: inline-block;
+    }
+
+    .logo {
+        max-width: 200px;
+        height: auto;
+        margin-bottom: 1rem;
     }
 </style>

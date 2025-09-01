@@ -266,6 +266,7 @@
 
     function downloadJSON() {
         const quizData = getQuizDataFromPage();
+		quizData.quizSourceId = null;
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quizData, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);

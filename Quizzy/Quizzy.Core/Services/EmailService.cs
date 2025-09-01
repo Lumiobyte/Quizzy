@@ -40,7 +40,7 @@ namespace Quizzy.Core.Services
                 "<font color=\"#1e88e5\" style=\"color:#0800ff;\">z</font>" +
                 "<font color=\"#8e24aa\" style=\"color:#ff00e1;\">y</font>" +
             "</h1>";
-            string footer = "<p style=\"margin:5rem;\">Best regards,<br/>The Onipotent Quizzy Team</p>";
+            string footer = "<p style=\"margin:5rem;\">Best regards,<br/>The Omnipotent Quizzy Team</p>";
             return $"<html><body>{header}<br /><div style=\"color:#000000;\"><p>{body}</p><br />{footer}</div></body></html>";
         }
 
