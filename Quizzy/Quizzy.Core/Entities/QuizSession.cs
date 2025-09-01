@@ -1,4 +1,5 @@
 ﻿using Quizzy.Core.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Quizzy.Core.Entities
 {
@@ -10,6 +11,11 @@ namespace Quizzy.Core.Entities
         public string GamePin { get; set; }
 
         public QuizState State { get; set; } = QuizState.Lobby;
+
+        public string QuestionOrder { get; set; } = "";
+
+        [NotMapped]
+        public List<int> QuestionOrderList => QuestionOrder.Split(',').Select(int.Parse).ToList();
 
         public Guid QuizHostId { get; set; }
         public UserAccount QuizHost { get; set; }

@@ -30,23 +30,23 @@ namespace Quizzy.Core.Repositories
             return await _dbSet.Where(predicate).ToListAsync();
         }
 
-        public async Task AddAsync(T entity)
+        public virtual async Task AddAsync(T entity)
         {
             await _dbSet.AddAsync(entity);
         }
 
-        public void Update(T entity)
+        public virtual void Update(T entity)
         {
             _dbSet.Attach(entity);
             _dbContext.Entry(entity).State = EntityState.Modified;
         }
 
-        public void Remove(T entity)
+        public virtual void Remove(T entity)
         {
             _dbSet.Remove(entity);
         }
 
-        public async Task Remove(Guid id)
+        public virtual async Task Remove(Guid id)
         {
             if(await _dbSet.FindAsync(id) is { } target)
             {

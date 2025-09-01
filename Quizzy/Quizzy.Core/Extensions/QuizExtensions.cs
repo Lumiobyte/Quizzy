@@ -27,5 +27,19 @@ namespace Quizzy.Core.Extensions
 
             return true;
         }
+
+        public static string GetQuestionOrder(this Quiz quiz)
+        {
+            var questionIndexes = quiz.Questions.Select(q => q.OrderIndex).ToList();
+            questionIndexes.Sort();
+            return string.Join(",", questionIndexes);
+        }
+
+        public static string GetShuffledQuestionOrder(this Quiz quiz)
+        {
+            var questionIndexes = quiz.Questions.Select(q => q.OrderIndex).ToList();
+            questionIndexes.Shuffle();
+            return string.Join(",", questionIndexes);
+        }
     }
 }
