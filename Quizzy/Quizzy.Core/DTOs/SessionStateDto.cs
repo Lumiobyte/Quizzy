@@ -1,12 +1,11 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Quizzy.Web.Models
+namespace Quizzy.Core.DTOs
 {
-    public record QuestionStartedDto(string Text, string[] Options, int DurationSeconds, DateTimeOffset QuestionStartTimeUtc);
-
-    public record QuestionSummaryDto(int correctIndex, int[] optionCounts, (string Name, int Score)[] leaderboard);
-
     public class SessionStateDto
     {
         public string RoomId { get; init; } = string.Empty;

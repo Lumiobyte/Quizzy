@@ -1,18 +1,3 @@
-/* 
- * Quizzy client script
- * - Host UI (legacy host page) and Player UI 
- * - Shared SignalR connection factory + small DOM helpers
- * - Clean rendering functions and timer management
- *
- * NOTE: This preserves existing server API calls and event names.
- *  - Server events listened:   "sessionStateUpdated", "QuestionEnded"
- *  - Server methods invoked:   Host: ClaimHost, StartQuestionNow, ScheduleNextQuestion, EndQuestion
- *                               Player: JoinAsPlayer, SubmitAnswer
- *
- * If you are using the new Host Lobby (/Host/Lobby), its inline script handles host actions there.
- * The host section below supports the original host page with a form + controls.
- */
-
 (() => {
     "use strict";
 
@@ -83,9 +68,6 @@
         };
     }
 
-    // =====================================================================
-    // HOST (legacy host page with form/controls)
-    // =====================================================================
     (function hostScope() {
         const form = $("hostForm");
         if (!form) return; // not on host legacy page
@@ -203,7 +185,6 @@
             if (scheduleBtn) scheduleBtn.disabled = false;
         });
 
-        // Start question now (legacy path that passes question text/options to server)
         startNowBtn?.addEventListener("click", async () => {
             const text = qText?.value.trim();
             const options = qOpts.map((o) => o.value.trim()).filter(Boolean);

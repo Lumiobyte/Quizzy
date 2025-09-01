@@ -96,10 +96,14 @@
                         } else {
                             alert("Failed to create a session.");
                         }
-                    } catch (error) {
+                    } 
+                    catch (error) 
+                    {
                         console.error("Failed to start session", error);
                         alert("Failed to start session: " + (error?.message ?? error));
-                    } finally {
+                    } 
+                    finally 
+                    {
                         buttonElement.disabled = false;
                     }
                 });

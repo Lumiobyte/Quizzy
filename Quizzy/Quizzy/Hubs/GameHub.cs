@@ -1,13 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
-using Quizzy.Core;
 using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
-using Quizzy.Web.Models;
 using Quizzy.Web.Services;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using Quizzy.Core.DTOs;
 
 namespace Quizzy.Web.Hubs
 {
@@ -28,8 +23,6 @@ namespace Quizzy.Web.Hubs
             _sessions = sessions;
             _unitOfWork = unitOfWork;
         }
-
-        // ---------------- UTIL & DTOs ----------------
 
         private static SessionStateDto BuildStateDto(string gamePin, Services.SessionRuntime runtime, IEnumerable<QuizPlayer> dbPlayers)
         {
@@ -259,7 +252,7 @@ namespace Quizzy.Web.Hubs
 
                 try
                 {
-                    await StartNextQuestionNow(gamePin);
+                    
                 }
                 catch (Exception exception)
                 {
