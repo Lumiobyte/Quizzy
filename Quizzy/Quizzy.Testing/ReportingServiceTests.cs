@@ -60,6 +60,8 @@ namespace Quizzy.Testing
             /*
              * Since this is in a testing project, the reports are saved to bin/Debug/net8.0/ReportCache rather than the actual file
              * If you encounter issues with files not being deleted, please check that folder and delete any leftover files
+             * 
+             * In Addition, if you want to test the the functionality of this feature, you can just use an actual emailservice instance and change the test email, then customize the test to your needs
              */
 
             QuestPDF.Settings.License = LicenseType.Community;
