@@ -25,6 +25,11 @@ namespace Quizzy.Core.Repositories
             return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == session.QuestionOrderList.First());
         }
 
+        public QuizQuestion? GetCurrentQuestion(QuizSession session, int currentOrderIndex)
+        {
+            return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == currentOrderIndex);
+        }
+
         public QuizQuestion? GetNextQuestion(QuizSession session, int currentOrderIndex)
         {
             return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == GetNextQuestionIndex(currentOrderIndex, session.QuestionOrderList));

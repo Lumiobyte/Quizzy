@@ -12,7 +12,7 @@
         public Guid QuizSessionId { get; set; }
         public QuizSession QuizSession { get; set; }
 
-        public ICollection<QuizAnswer> Answers { get; set; } = new List<QuizAnswer>();
+        public ICollection<PlayerAnswer> Answers { get; set; } = new List<PlayerAnswer>();
 
     }
 }

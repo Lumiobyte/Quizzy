@@ -35,20 +35,20 @@ namespace Quizzy.Testing
                 {
                     Id = Guid.NewGuid(),
                     Name = "Alexander the Great",
-                    Answers = new List<QuizAnswer>
+                    Answers = new List<PlayerAnswer>
                     {
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = false },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = false } },
                     }
                 },
                 new QuizPlayer
                 {
                     Id = Guid.NewGuid(),
                     Name = "Julius Caesar",
-                    Answers = new List<QuizAnswer>
+                    Answers = new List<PlayerAnswer>
                     {
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
                     }
                 }
             }
@@ -121,7 +121,7 @@ namespace Quizzy.Testing
         }
 
         [Test]
-        public async Task GenerateReportCreatsFileButDoesNotDeleteIt()
+        public async Task GenerateReportCreatesFileButDoesNotDeleteIt()
         {
             // Act
             var path = await reportingService.GenerateReport(session);
