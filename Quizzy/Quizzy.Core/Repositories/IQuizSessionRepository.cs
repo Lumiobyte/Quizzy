@@ -4,8 +4,8 @@ namespace Quizzy.Core.Repositories
 {
     public interface IQuizSessionRepository : IRepository<QuizSession>
     {
-        QuizSession? GetByIdWithDetailsAsync(Guid id);
+        Task<QuizSession?> GetByIdWithDetailsAsync(Guid id);
         QuizQuestion? GetFirstQuestion(QuizSession session);
-        Task<QuizQuestion?> GetNextQuestion(QuizSession session, int currentOrderIndex);
+        QuizQuestion? GetNextQuestion(QuizSession session, int currentOrderIndex);
     }
 }

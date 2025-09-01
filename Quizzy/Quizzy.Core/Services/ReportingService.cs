@@ -81,7 +81,7 @@ namespace Quizzy.Core.Services
                                 for (int i = 0; i < orderedPlayers.Count; i++)
                                 {
                                     var player = orderedPlayers[i];
-                                    var correct = player.Answers?.Count(a => a.IsCorrect) ?? 0;
+                                    var correct = player.Answers?.Count(a => a.Answer.IsCorrect) ?? 0;
 
                                     table.Cell().Element(DataCell).Text((i + 1).ToString());
                                     table.Cell().Element(DataCell).Text(player.Name ?? "Unknown");
@@ -116,7 +116,7 @@ namespace Quizzy.Core.Services
                      .BorderBottom(1).BorderColor(Colors.Grey.Lighten3);
 
         List<QuizPlayer> GetPlayersByScoreOrder(QuizSession session)
-            => session.Players.OrderByDescending(p => p.Answers.Sum(a => a.IsCorrect ? 1 : 0))
+            => session.Players.OrderByDescending(p => p.Answers.Sum(a => a.Answer.IsCorrect ? 1 : 0))
                 .ToList();
     }
 }
