@@ -35,20 +35,20 @@ namespace Quizzy.Testing
                 {
                     Id = Guid.NewGuid(),
                     Name = "Alexander the Great",
-                    Answers = new List<QuizAnswer>
+                    Answers = new List<PlayerAnswer>
                     {
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = false },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = false } },
                     }
                 },
                 new QuizPlayer
                 {
                     Id = Guid.NewGuid(),
                     Name = "Julius Caesar",
-                    Answers = new List<QuizAnswer>
+                    Answers = new List<PlayerAnswer>
                     {
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
-                        new QuizAnswer { Id = Guid.NewGuid(), IsCorrect = true },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
+                        new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
                     }
                 }
             }
@@ -60,6 +60,9 @@ namespace Quizzy.Testing
             /*
              * Since this is in a testing project, the reports are saved to bin/Debug/net8.0/ReportCache rather than the actual file
              * If you encounter issues with files not being deleted, please check that folder and delete any leftover files
+             * 
+             * In Addition, if you want to test the the functionality of this feature easily, you can just use an actual emailservice instance and change the test email, then customize the test to your needs
+             * Alternatively, you can remove the delete functionality in the GenerateReportCreatsFileButDoesNotDeleteIt() test to keep the file to inspect it
              */
 
             QuestPDF.Settings.License = LicenseType.Community;
@@ -118,7 +121,7 @@ namespace Quizzy.Testing
         }
 
         [Test]
-        public async Task GenerateReportCreatsFileButDoesNotDeleteIt()
+        public async Task GenerateReportCreatesFileButDoesNotDeleteIt()
         {
             // Act
             var path = await reportingService.GenerateReport(session);
