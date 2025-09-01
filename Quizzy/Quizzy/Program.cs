@@ -1,6 +1,7 @@
 using QuestPDF.Infrastructure;
 using Quizzy.Core;
 using Quizzy.Core.Repositories;
+using Quizzy.Core.Scoring;
 using Quizzy.Core.Services;
 
 namespace Quizzy
@@ -24,6 +25,7 @@ namespace Quizzy
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
+            builder.Services.AddScoped<IScoringStrategyFactory, ScoringStrategyFactory>();
 
             var app = builder.Build();
 

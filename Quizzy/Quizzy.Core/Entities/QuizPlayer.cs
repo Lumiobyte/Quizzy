@@ -16,9 +16,5 @@ namespace Quizzy.Core.Entities
 
         public ICollection<PlayerAnswer> Answers { get; set; } = new List<PlayerAnswer>();
 
-        public ScoringStrategyType ScoringStrategy { get; set; }
-
-        public string ScoringData { get; set; } = ""; // Scoring strategies can store different data here if they need it to persist between requests e.g. streak data
-
     }
 }

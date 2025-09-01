@@ -1,20 +1,38 @@
 ﻿using Quizzy.Core.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Quizzy.Core.Repositories;
 
 namespace Quizzy.Core.Scoring
 {
-    public class BaseScoringStrategy
+    public abstract class BaseScoringStrategy : IScoringStrategy
     {
 
-        public void GetLeaderboard(QuizSession session)
+        protected readonly IUnitOfWork _unitOfWork;
+
+        public BaseScoringStrategy(IUnitOfWork unitOfWork)
+        {
+            _unitOfWork = unitOfWork;
+        }
+
+        public virtual async Task GetLeaderboardAsync(QuizSession session)
         {
             // calculate lb based on scores
             // return KVP of players + their score.
         }
+
+        public async Task ScoreSessionAsync(QuizSession session)
+        {
+            if (session.ScoringComplete)
+            {
+                return;
+            }
+
+            await DoScoreSessionAsync(session);
+
+            session.ScoringComplete = true;
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        protected abstract Task DoScoreSessionAsync(QuizSession session);
 
     }
 }

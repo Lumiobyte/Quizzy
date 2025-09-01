@@ -4,7 +4,7 @@ namespace Quizzy.Core.Scoring
 {
     public interface IScoringStrategy
     {
-        void ScoreAnswers(List<PlayerAnswer> answers);
-        void GetLeaderboard(QuizSession session);
+        Task ScoreSessionAsync(QuizSession session);
+        Task GetLeaderboardAsync(QuizSession session);
     }
 }
