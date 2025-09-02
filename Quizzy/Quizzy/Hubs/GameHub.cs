@@ -288,6 +288,8 @@ namespace Quizzy.Web.Hubs
 
                             var allAnswers = (await endUow.PlayerAnswers.FindAsync(a => a.QuestionId == questionId)).ToList();
 
+                            var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
+
                             var counts = Enumerable.Repeat(0, answersOrdered.Count).ToArray();
                             foreach (var pa in allAnswers)
                             {
@@ -296,8 +298,15 @@ namespace Quizzy.Web.Hubs
                                 if (idx >= 0) counts[idx]++;
                             }
 
+                            var answersDto = allAnswers
+                                .Where(pa => playerIds.Contains(pa.PlayerId))
+                                .Select(pa => new PlayerAnswerDto(
+                                    nameByPlayer.TryGetValue(pa.PlayerId, out var nm) ? nm : string.Empty,
+                                    answersOrdered.FindIndex(a => a.Id == pa.AnswerId),
+                                    pa.ResponseTime.TotalSeconds))
+                                .ToArray();
+
                             // Leaderboard from in-memory scores (fast) + names from DB
-                            var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
                             var leaderboard = runtime.ScoreByPlayer
                                 .OrderByDescending(kv => kv.Value)
                                 .ThenBy(kv => nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : string.Empty, StringComparer.OrdinalIgnoreCase)
@@ -313,7 +322,8 @@ namespace Quizzy.Web.Hubs
                             {
                                 correctIndex,
                                 optionCounts = counts,
-                                leaderboard
+                                leaderboard,
+                                answers = answersDto
                             });
 
                             // Recreate a minimal SessionState (don’t call BroadcastSessionState here, it uses the hub’s scoped _unitOfWork)
@@ -597,13 +607,6 @@ namespace Quizzy.Web.Hubs
             await _unitOfWork.SaveChangesAsync();
 
             await BroadcastSessionState(gamePin, runtime);
-
-            // If every connected player has answered, end the question early
-            var totalPlayers = runtime.PlayerByConnection.Values.Distinct().Count();
-            if (totalPlayers > 0 && runtime.AnsweredThisQuestion.Count >= totalPlayers)
-            {
-                await EndCurrentQuestion(gamePin);
-            }
         }
 
         public async Task EndCurrentQuestion(string gamePin)
@@ -651,6 +654,15 @@ namespace Quizzy.Web.Hubs
             }
 
             var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
+
+            var answersDto = allAnswers
+                .Where(pa => playerIds.Contains(pa.PlayerId))
+                .Select(pa => new PlayerAnswerDto(
+                    nameByPlayer.TryGetValue(pa.PlayerId, out var nm) ? nm : string.Empty,
+                    answersOrdered.FindIndex(a => a.Id == pa.AnswerId),
+                    pa.ResponseTime.TotalSeconds))
+                .ToArray();
+
             var leaderboard = runtime.ScoreByPlayer // SCORING FUNCTIONALITY HERE
                 .OrderByDescending(kv => kv.Value)
                 .ThenBy(kv => nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : string.Empty, StringComparer.OrdinalIgnoreCase)
@@ -664,7 +676,8 @@ namespace Quizzy.Web.Hubs
             {
                 correctIndex,
                 optionCounts = counts,
-                leaderboard
+                leaderboard,
+                answers = answersDto
             });
 
             await BroadcastSessionState(gamePin, runtime);
