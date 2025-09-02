@@ -20,3 +20,48 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+.option-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.option-card {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #e2e2e2;
+    background: #f8f9fa;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.option-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    background: #ffffff;
+}
+
+.option-card[disabled] {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+    box-shadow: none;
+}
+
+.option-label {
+    display: inline-block;
+    min-width: 28px;
+    padding: 6px 10px;
+    margin-right: 8px;
+    border-radius: 999px;
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+}

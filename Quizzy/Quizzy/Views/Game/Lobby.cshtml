@@ -1,0 +1,262 @@
+@{
+    ViewData["Title"] = "Host Lobby";
+    var pin = Context?.Request?.Query["pin"].ToString();
+}
+
+<div class="container py-4">
+    <h2 class="mb-3">Host Lobby</h2>
+
+    <div class="mb-3">
+        <div>Room PIN: <strong id="roomLabel">@pin</strong></div>
+        <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
+        <div id="statusEl" class="text-muted">Waiting for players…</div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-lg-6">
+            <h5>Players Joined (<span id="playerCount">0</span>)</h5>
+            <ul id="playerList" class="list-group"></ul>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <h5>Controls</h5>
+            <div class="d-flex gap-2 flex-wrap">
+                <button id="startNowBtn" class="btn btn-success" disabled>Start Next Question Now</button>
+                <button id="scheduleBtn" class="btn btn-outline-primary" disabled>Schedule in 5s</button>
+                <button id="endBtn" class="btn btn-outline-danger" disabled>End Question</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="upcomingBox" class="mt-3 alert alert-secondary" style="display:none;">
+        Next question starts in <strong><span id="hostNextIn">0</span>s</strong>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+<script>
+    (function () {
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        function secondsUntilUtc(targetUtc) {
+            if (!targetUtc) {
+                return 0;
+            }
+
+            const target = new Date(targetUtc);
+            const diff = (target.getTime() - Date.now()) / 1000;
+
+            return Math.max(0, Math.floor(diff));
+        }
+
+        const pin = (new URLSearchParams(window.location.search)).get("pin");
+
+        const roomLabel = $("roomLabel");
+        const statusEl = $("statusEl");
+        const playerList = $("playerList");
+        const playerCount = $("playerCount");
+
+        const copyBtn = document.getElementById('copyPin');
+        const startNowBtn = $("startNowBtn");
+        let questionIndex = -1;
+        const scheduleBtn = $("scheduleBtn");
+        const endBtn = $("endBtn");
+
+        const hostNextIn = $("hostNextIn");
+        const upcomingBox = $("upcomingBox");
+
+        let upcomingTimer = null;
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        copyBtn.addEventListener('click', async () =>
+        {
+            await navigator.clipboard.writeText(pin);
+            copyBtn.textContent='Copied!';
+            setTimeout(()=>copyBtn.textContent='Copy', 1200);
+        });
+
+        <!-- #region hallucination -->
+
+            const nameInput = $("pName");
+            const sessionInput = $("pSession");
+            const playArea = $("playArea");
+            const pStatus = $("pStatus");
+            const pQText = $("pQText");
+            const pOptions = $("pOptions");
+            const waitingPane = $("waitingPane");
+            const pQuestion = $("pQuestion");
+            const pAnswered = $("pAnswered");
+            const pScore = $("pScore");
+            const pPlace = $("pPlace");
+            const pTimer = $("pTimer");
+            const pUpcoming = $("pUpcoming");
+            const pNextIn = $("pNextIn");
+            const pNextQ = $("pNextQ");
+            const pNextOpts = $("pNextOpts");
+
+            // State
+            let sessionId = null;
+            let myName = null;
+            let answered = false;
+            const questionTicker = makeTicker();
+            const upcomingTicker = makeTicker();
+
+            function makeTicker() {
+                let id = null;
+                return {
+                    start(fn, ms) {
+                        this.stop();
+                        id = setInterval(fn, ms);
+                    },
+                    stop() {
+                        if (id) {
+                            clearInterval(id); id = null;
+                        }
+                    }
+                };
+            }
+
+        <!-- #endregion -->
+
+        connection.on("SessionStateUpdated", (state) =>
+        {
+            if (Array.isArray(state.players)) {
+                playerList.innerHTML = "";
+
+                for (const player of state.players) {
+                    const li = document.createElement("li");
+                    li.className = "list-group-item";
+                    li.textContent = player.name ?? "(unnamed)";
+                    playerList.appendChild(li);
+                }
+
+                playerCount.textContent = String(state.players.length);
+            }
+
+            if (state.question) {
+                statusEl.textContent = "Question live";
+
+                if (upcomingBox) {
+                    upcomingBox.style.display = "none";
+                }
+
+                if (upcomingTimer) {
+                    clearInterval(upcomingTimer);
+                    upcomingTimer = null;
+                }
+
+                startNowBtn.disabled = true;
+                scheduleBtn.disabled = true;
+                endBtn.disabled = false;
+            } else {
+                if (state.upcoming) {
+                    statusEl.textContent = "Starting soon…";
+
+                    if (upcomingBox) {
+                        upcomingBox.style.display = "";
+                    }
+
+                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
+
+                    const tick = () => {
+                        const remain = secondsUntilUtc(targetUtc);
+                        if (hostNextIn) {
+                            hostNextIn.textContent = String(remain);
+                        }
+                    };
+
+                    if (upcomingTimer) {
+                        clearInterval(upcomingTimer);
+                    }
+
+                    tick();
+                    upcomingTimer = setInterval(tick, 250);
+
+                    startNowBtn.disabled = true;
+                    scheduleBtn.disabled = true;
+                    endBtn.disabled = true;
+                } else {
+                    statusEl.textContent = "Waiting to start…";
+
+                    if (upcomingBox) {
+                        upcomingBox.style.display = "none";
+                    }
+
+                    if (upcomingTimer) {
+                        clearInterval(upcomingTimer);
+                        upcomingTimer = null;
+                    }
+
+                    startNowBtn.disabled = false;
+                    scheduleBtn.disabled = false;
+                    endBtn.disabled = true;
+                }
+            }
+        });
+
+        connection.onclose(() => {
+            statusEl.textContent = "Disconnected. Reconnecting…";
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                if (!pin) {
+                    statusEl.textContent = "Missing or invalid PIN.";
+                    return;
+                }
+
+                roomLabel.textContent = pin;
+
+                await connection.start();
+
+            connection.on("StartNextQuestion", function () {
+                startNowBtn.disabled = true;
+                scheduleBtn.disabled = true;
+                endBtn.disabled = false;
+                statusEl.textContent = "Question live — timer running…";
+            });
+            connection.on("QuestionEnded", function () {
+                startNowBtn.disabled = false;
+                scheduleBtn.disabled = false;
+                endBtn.disabled = true;
+                statusEl.textContent = "Question ended. Ready for next.";
+            });
+
+                await connection.invoke("ClaimHost", pin);
+
+                startNowBtn.disabled = false;
+                scheduleBtn.disabled = false;
+
+                startNowBtn.addEventListener("click", async () =>
+                {
+                    questionIndex += 1;
+                    await connection.invoke("ScheduleNextQuestion", pin, 0, questionIndex);
+                });
+
+                scheduleBtn.addEventListener("click", async () =>
+                {
+                    questionIndex += 1;
+                    await connection.invoke("ScheduleNextQuestion", pin, 3, questionIndex);
+                });
+
+                endBtn.addEventListener("click", async () =>
+                {
+                    await connection.invoke("EndCurrentQuestion", pin);
+                });
+            }
+            catch (error)
+            {
+                console.error("Lobby init error:", error);
+                statusEl.textContent = "Failed to connect.";
+            }
+        });
+    })();
+</script>

@@ -2,12 +2,14 @@ using QuestPDF.Infrastructure;
 using Quizzy.Core;
 using Quizzy.Core.Repositories;
 using Quizzy.Core.Services;
+using Quizzy.Web.Hubs;
+using Quizzy.Web.Services;
 
 namespace Quizzy
 {
     public class Program
     {
-        static bool seedOnStartup = true;
+        static bool seedOnStartup = false;
 
         public static void Main(string[] args)
         {
@@ -16,10 +18,10 @@ namespace Quizzy
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
-
-            // DI Services
             builder.Services.AddDbContext<QuizzyDbContext>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddSignalR();
+            builder.Services.AddSingleton<SessionCoordinator>();
             builder.Services.AddScoped<ILoginService, LoginService>();
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
@@ -41,7 +43,6 @@ namespace Quizzy
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
@@ -49,12 +50,14 @@ namespace Quizzy
             app.UseStaticFiles();
 
             app.UseRouting();
-
             app.UseAuthorization();
 
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
+
+            app.MapHub<GameHub>("/gamehub");
+            app.MapHub<UserHub>("/userhub");
 
             app.Run();
         }
