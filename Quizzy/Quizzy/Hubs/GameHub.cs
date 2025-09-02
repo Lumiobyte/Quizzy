@@ -608,9 +608,6 @@ namespace Quizzy.Web.Hubs
             if (allAnswered)
             {
                 await EndCurrentQuestion(gamePin);
-            }
-            else
-            {
                 await BroadcastSessionState(gamePin, runtime);
             }
         }
