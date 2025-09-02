@@ -17,7 +17,7 @@ namespace Quizzy.Web.Hubs
         private readonly IServiceScopeFactory _scopeFactory;
 
         // Default per-question duration in seconds
-        private const int DefaultQuestionDuration = 20;
+        private const int DefaultQuestionDuration = 10; // CHANGE DURATION OF QUIZ HERE
 
         public GameHub(SessionCoordinator sessions, IUnitOfWork unitOfWork, IServiceScopeFactory scopeFactory)
         {
@@ -375,7 +375,7 @@ namespace Quizzy.Web.Hubs
                 Question = question.Text ?? string.Empty,
                 Options = answerStrings,
                 QuestionType = question.QuestionType,
-                DurationSeconds = 3,
+                DurationSeconds = DefaultQuestionDuration,
                 StartTimeOffset = DateTimeOffset.UtcNow
             };
         }
@@ -402,7 +402,9 @@ namespace Quizzy.Web.Hubs
                 session.Quiz = await unitOfWork.Quizzes.GetByIdWithDetailsAsync(session.QuizId);
             }
 
-            var questions = session.Quiz?.Questions?.ToList() ?? new List<QuizQuestion>();
+            var questions = session.Quiz?.Questions?
+                .OrderBy(q => q.OrderIndex)
+                .ToList() ?? new List<QuizQuestion>();
 
             // Ensure each question has answers materialized (order however you want)
             foreach (var q in questions)
@@ -414,6 +416,12 @@ namespace Quizzy.Web.Hubs
             }
 
             return questions;
+        }
+
+        public async Task<int> GetQuestionCount(string gamePin)
+        {
+            var questions = await GetQuizQuestionsAsync(_unitOfWork, gamePin);
+            return questions.Count;
         }
 
         private static QuizQuestion GetQuizQuestionAtIndex(int index, IList<QuizQuestion> questions)
@@ -566,7 +574,7 @@ namespace Quizzy.Web.Hubs
                 QuestionId = question.Id,
                 AnswerId = chosen.Id,
                 ResponseTime = TimeSpan.FromTicks(0),
-                PointsValue = chosen.IsCorrect ? 1000 : 0
+                PointsValue = chosen.IsCorrect ? 1000 : 0 // SCORING FUNCTIONALITY HERE
             };
 
             await _unitOfWork.PlayerAnswers.AddAsync(pa);
@@ -574,16 +582,13 @@ namespace Quizzy.Web.Hubs
             runtime.MarkAnswered(playerId);
             if (chosen.IsCorrect)
             {
-                runtime.ScoreByPlayer.AddOrUpdate(playerId, pa.PointsValue, (_, existing) => existing + pa.PointsValue);
+                runtime.ScoreByPlayer.AddOrUpdate(playerId, pa.PointsValue, (_, existing) => existing + pa.PointsValue);// SCORING FUNCTIONALITY HERE
             }
 
             await _unitOfWork.SaveChangesAsync();
             await BroadcastSessionState(gamePin, runtime);
         }
 
-        /// <summary>
-        /// Ends the current live question immediately and broadcasts results.
-        /// </summary>
         public async Task EndCurrentQuestion(string gamePin)
         {
             if (string.IsNullOrWhiteSpace(gamePin))
@@ -629,7 +634,7 @@ namespace Quizzy.Web.Hubs
             }
 
             var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
-            var leaderboard = runtime.ScoreByPlayer
+            var leaderboard = runtime.ScoreByPlayer // SCORING FUNCTIONALITY HERE
                 .OrderByDescending(kv => kv.Value)
                 .ThenBy(kv => nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : string.Empty, StringComparer.OrdinalIgnoreCase)
                 .Take(50)

@@ -12,32 +12,13 @@
         <div id="statusEl" class="text-muted">Waiting for players…</div>
     </div>
 
-    <div class="row">
-        <div class="col-12 col-lg-6">
-            <h5>Players Joined (<span id="playerCount">0</span>)</h5>
-            <ul id="playerList" class="list-group"></ul>
-        </div>
-
-        <div class="col-12 col-lg-6">
-            <h5>Controls</h5>
-            <div class="d-flex gap-2 flex-wrap">
-                <button id="startNowBtn" class="btn btn-success" disabled>Start Next Question Now</button>
-                <button id="scheduleBtn" class="btn btn-outline-primary" disabled>Schedule in 5s</button>
-                <button id="endBtn" class="btn btn-outline-danger" disabled>End Question</button>
-            </div>
-        </div>
+    <div>
+        <h5>Players Joined (<span id="playerCount">0</span>)</h5>
+        <ul id="playerList" class="list-group"></ul>
     </div>
 
-    <div id="questionBox" class="mt-3 card" style="display:none;">
-        <div class="card-body">
-            <h4 id="qText" class="card-title"></h4>
-            <div class="text-muted">Time left: <span id="qTimer">0</span>s</div>
-            <ul id="qOptions" class="mt-2"></ul>
-        </div>
-    </div>
-
-    <div id="upcomingBox" class="mt-3 alert alert-secondary" style="display:none;">
-        Next question starts in <strong><span id="hostNextIn">0</span>s</strong>
+    <div class="mt-3">
+        <button id="startQuizBtn" class="btn btn-success" disabled>Start Quiz</button>
     </div>
 </div>
 
@@ -46,20 +27,7 @@
 
 <script>
     (function () {
-        function $(id) {
-            return document.getElementById(id);
-        }
-
-        function secondsUntilUtc(targetUtc) {
-            if (!targetUtc) {
-                return 0;
-            }
-
-            const target = new Date(targetUtc);
-            const diff = (target.getTime() - Date.now()) / 1000;
-
-            return Math.max(0, Math.floor(diff));
-        }
+        function $(id) { return document.getElementById(id); }
 
         const pin = (new URLSearchParams(window.location.search)).get("pin");
 
@@ -68,75 +36,21 @@
         const playerList = $("playerList");
         const playerCount = $("playerCount");
 
-        const copyBtn = document.getElementById('copyPin');
-        const startNowBtn = $("startNowBtn");
-        let questionIndex = -1;
-        const scheduleBtn = $("scheduleBtn");
-        const endBtn = $("endBtn");
-
-        const hostNextIn = $("hostNextIn");
-        const upcomingBox = $("upcomingBox");
-
-        let upcomingTimer = null;
+        const copyBtn = $("copyPin");
+        const startQuizBtn = $("startQuizBtn");
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/gamehub")
             .withAutomaticReconnect()
             .build();
 
-        copyBtn.addEventListener('click', async () =>
-        {
+        copyBtn.addEventListener('click', async () => {
             await navigator.clipboard.writeText(pin);
             copyBtn.textContent='Copied!';
             setTimeout(()=>copyBtn.textContent='Copy', 1200);
         });
 
-        const qText = $("qText");
-        const qTimer = $("qTimer");
-        const qOptions = $("qOptions");
-        const questionBox = $("questionBox");
-        let questionTicker = null;
-
-        function secondsRemainingFromUtc(startUtc, durationSeconds) {
-            if (!startUtc) { return 0; }
-            const started = new Date(startUtc).getTime();
-            const elapsed = (Date.now() - started) / 1000;
-            return Math.max(0, Math.floor(durationSeconds - elapsed));
-        }
-
-        function showQuestion(dto) {
-            if (!dto) return;
-            const text = dto.text || dto.question || "";
-            const options = dto.options || [];
-            const startUtc = dto.questionStartTimeUtc || dto.startTimeOffset;
-            const duration = dto.durationSeconds || 0;
-
-            if (questionBox) questionBox.style.display = "";
-            if (qText) qText.textContent = text;
-            if (qOptions) {
-                qOptions.innerHTML = "";
-                options.forEach((opt, idx) => {
-                    const li = document.createElement("li");
-                    li.textContent = `${idx}: ${opt}`;
-                    qOptions.appendChild(li);
-                });
-            }
-
-            if (questionTicker) { clearInterval(questionTicker); }
-            questionTicker = setInterval(() => {
-                if (qTimer) {
-                    qTimer.textContent = String(secondsRemainingFromUtc(startUtc, duration));
-                }
-            }, 500);
-        }
-
-        function hideQuestion() {
-            if (questionBox) questionBox.style.display = "none";
-            if (questionTicker) { clearInterval(questionTicker); questionTicker = null; }
-        }
-
-        connection.on("SessionStateUpdated", (state) =>
-        {
+        connection.on("SessionStateUpdated", (state) => {
             if (Array.isArray(state.players)) {
                 playerList.innerHTML = "";
 
@@ -149,73 +63,6 @@
 
                 playerCount.textContent = String(state.players.length);
             }
-
-            if (state.question) {
-                statusEl.textContent = "Question live";
-
-                if (upcomingBox) {
-                    upcomingBox.style.display = "none";
-                }
-
-                if (upcomingTimer) {
-                    clearInterval(upcomingTimer);
-                    upcomingTimer = null;
-                }
-
-                showQuestion(state.question);
-
-                startNowBtn.disabled = true;
-                scheduleBtn.disabled = true;
-                endBtn.disabled = false;
-            } else {
-                hideQuestion();
-                if (state.upcoming) {
-                    statusEl.textContent = "Starting soon…";
-
-                    if (upcomingBox) {
-                        upcomingBox.style.display = "";
-                    }
-
-                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
-
-                    const tick = () => {
-                        const remain = secondsUntilUtc(targetUtc);
-                        if (hostNextIn) {
-                            hostNextIn.textContent = String(remain);
-                        }
-                    };
-
-                    if (upcomingTimer) {
-                        clearInterval(upcomingTimer);
-                    }
-
-                    tick();
-                    upcomingTimer = setInterval(tick, 250);
-
-                    startNowBtn.disabled = true;
-                    scheduleBtn.disabled = true;
-                    endBtn.disabled = true;
-                } else {
-                    statusEl.textContent = "Waiting to start…";
-
-                    if (upcomingBox) {
-                        upcomingBox.style.display = "none";
-                    }
-
-                    if (upcomingTimer) {
-                        clearInterval(upcomingTimer);
-                        upcomingTimer = null;
-                    }
-
-                    startNowBtn.disabled = false;
-                    scheduleBtn.disabled = false;
-                    endBtn.disabled = true;
-                }
-            }
-        });
-
-        connection.onclose(() => {
-            statusEl.textContent = "Disconnected. Reconnecting…";
         });
 
         window.addEventListener("DOMContentLoaded", async () => {
@@ -229,37 +76,11 @@
 
                 await connection.start();
 
-            connection.on("StartNextQuestion", function (dto) {
-                showQuestion(dto);
-                if (upcomingBox) upcomingBox.style.display = "none";
-                startNowBtn.disabled = true;
-                scheduleBtn.disabled = true;
-                endBtn.disabled = false;
-                statusEl.textContent = "Question live — timer running…";
-            });
-            connection.on("QuestionEnded", function () {
-                hideQuestion();
-                startNowBtn.disabled = false;
-                scheduleBtn.disabled = false;
-                endBtn.disabled = true;
-                statusEl.textContent = "Question ended. Ready for next.";
-            });
-
                 await connection.invoke("ClaimHost", pin);
 
-                startNowBtn.disabled = false;
-                scheduleBtn.disabled = false;
-
-                startNowBtn.addEventListener("click", async () =>
-                {
-                    questionIndex += 1;
-                    await connection.invoke("ScheduleNextQuestion", pin, 0, questionIndex);
-                });
-
-                scheduleBtn.addEventListener("click", async () =>
-                {
-                    questionIndex += 1;
-                    await connection.invoke("ScheduleNextQuestion", pin, 3, questionIndex);
+                startQuizBtn.disabled = false;
+                startQuizBtn.addEventListener("click", () => {
+                    window.location.href = `/Host/Quiz?pin=${encodeURIComponent(pin)}`;
                 });
 
                 endBtn.addEventListener("click", async () =>
@@ -267,8 +88,7 @@
                     await connection.invoke("EndCurrentQuestion", pin);
                 });
             }
-            catch (error)
-            {
+            catch (error) {
                 console.error("Lobby init error:", error);
                 statusEl.textContent = "Failed to connect.";
             }

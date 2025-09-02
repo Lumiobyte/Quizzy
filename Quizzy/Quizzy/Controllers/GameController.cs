@@ -16,5 +16,19 @@ namespace Quizzy.Web.Controllers
             ViewData["Pin"] = pin ?? string.Empty;
             return View("Lobby");
         }
+
+        [HttpGet("/Host/Quiz")]
+        public IActionResult HostQuiz(string pin)
+        {
+            ViewData["Pin"] = pin ?? string.Empty;
+            return View("Quiz");
+        }
+
+        [HttpGet("/Host/Results")]
+        public IActionResult HostResults(string pin)
+        {
+            ViewData["Pin"] = pin ?? string.Empty;
+            return View("Results");
+        }
     }
 }

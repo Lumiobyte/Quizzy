@@ -41,18 +41,18 @@ namespace Quizzy.Web.Services
 
         public DateTimeOffset? CurrentQuestionStartUtc { get; private set; }
 
-        public int CurrentQuestionDurationSeconds { get; private set; } = 20;
+        public int CurrentQuestionDurationSeconds { get; private set; } = 10;  // CHANGE DURATION OF QUIZ HERE
 
         public DateTimeOffset? NextQuestionStartUtc { get; private set; }
 
         public SessionRuntime(QuizSession session) { Session = session; }
 
         public QuizQuestion? CurrentQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex >= 0 && CurrentQuestionIndex < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex)
+            ? Session.Quiz.Questions.OrderBy(question => question.OrderIndex).ElementAt(CurrentQuestionIndex)
             : null;
 
         public QuizQuestion? NextQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex + 1 < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex + 1)
+            ? Session.Quiz.Questions.OrderBy(question => question.OrderIndex).ElementAt(CurrentQuestionIndex + 1)
             : null;
 
 
