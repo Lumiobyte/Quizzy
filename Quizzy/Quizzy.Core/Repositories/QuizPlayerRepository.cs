@@ -1,4 +1,5 @@
-﻿using Quizzy.Core.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using Quizzy.Core.Entities;
 
 namespace Quizzy.Core.Repositories
 {
@@ -10,6 +11,11 @@ namespace Quizzy.Core.Repositories
         public async Task LoadPlayerAnswers(QuizPlayer player)
         {
             await _dbContext.Entry(player).Collection(p => p.Answers).LoadAsync();
+        }
+
+        public async Task LoadPlayerAnswersWithQuizAnswers(QuizPlayer player)
+        {
+            await _dbContext.Entry(player).Collection(p => p.Answers).Query().Include(a => a.Answer).LoadAsync();
         }
 
     }

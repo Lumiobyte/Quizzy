@@ -1,5 +1,6 @@
 ﻿using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
+using Quizzy.Core.Enums;
 
 namespace Quizzy.Core.Scoring
 {
@@ -21,7 +22,7 @@ namespace Quizzy.Core.Scoring
 
         public async Task ScoreSessionAsync(QuizSession session)
         {
-            if (session.ScoringComplete)
+            if (session.State is QuizState.InProgress || session.ScoringComplete)
             {
                 return;
             }
