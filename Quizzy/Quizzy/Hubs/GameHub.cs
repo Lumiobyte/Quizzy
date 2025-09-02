@@ -565,7 +565,7 @@ namespace Quizzy.Web.Hubs
                 PlayerId = playerId,
                 QuestionId = question.Id,
                 AnswerId = chosen.Id,
-                DateTime = DateTime.UtcNow,
+                ResponseTime = TimeSpan.FromTicks(0),
                 PointsValue = chosen.IsCorrect ? 1000 : 0
             };
 
