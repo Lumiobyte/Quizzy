@@ -34,7 +34,7 @@
 </div>
 
 <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 
 <script>
     (function () {
@@ -180,20 +180,12 @@
 
                 startNowBtn.addEventListener("click", async () => 
                 {
-                    try 
-                    {
-                        await connection.invoke("ScheduleNextQuestion", pin, 3);
-                    } 
-                    catch (error) 
-                    {
-                        // Fallback: if ScheduleNextQuestion isn't on the server, just start immediately.
-                        await connection.invoke("StartNextQuestionNow", pin);
-                    }
+                    await connection.invoke("ScheduleNextQuestion", pin, 0, 0);
                 });
 
                 scheduleBtn.addEventListener("click", async () => 
                 {
-                    await connection.invoke("ScheduleNextQuestion", pin, 5);
+                    await connection.invoke("ScheduleNextQuestion", pin, 3, 0);
                 });
 
                 endBtn.addEventListener("click", async () => 

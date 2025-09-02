@@ -68,6 +68,76 @@
         };
     }
 
+    function clearChildren(element) {
+        if (!element) {
+            return;
+        }
+
+        while (element.firstChild) {
+            element.removeChild(element.firstChild);
+        }
+    }
+
+    function normalizeQuestionDto(rawDto) {
+        const normalized = {
+            text: "",
+            options: [],
+            durationSeconds: 20,
+            questionStartTimeUtc: null
+        };
+
+        if (rawDto == null) {
+            return normalized;
+        }
+
+        // Text
+        if (typeof rawDto.text === "string" && rawDto.text.length > 0) {
+            normalized.text = rawDto.text;
+        } else if (typeof rawDto.question === "string" && rawDto.question.length > 0) {
+            normalized.text = rawDto.question;
+        }
+
+        // Answers or Options
+        if (Array.isArray(rawDto.answers)) {
+            normalized.options = rawDto.answers.map(function mapAnswer(answer) {
+                if (answer == null) {
+                    return { text: "" };
+                }
+
+                if (typeof answer === "string") {
+                    return { text: answer };
+                }
+
+                return { text: answer.text ?? "" };
+            });
+        } else if (Array.isArray(rawDto.options)) {
+            normalized.options = rawDto.options.map(function mapOption(opt) {
+                if (opt == null) {
+                    return { text: "" };
+                }
+
+                if (typeof opt === "string") {
+                    return { text: opt };
+                }
+
+                return { text: opt.text ?? "" };
+            });
+        }
+
+        // Duration
+        if (typeof rawDto.durationSeconds === "number" && rawDto.durationSeconds > 0) {
+            normalized.durationSeconds = rawDto.durationSeconds;
+        }
+
+        // Start time
+        const startUtcCandidate = rawDto.questionStartTimeUtc ?? rawDto.startUtc ?? rawDto.startedAtUtc;
+        if (startUtcCandidate) {
+            normalized.questionStartTimeUtc = startUtcCandidate;
+        }
+
+        return normalized;
+    }
+
     (function hostScope() {
         const form = $("hostForm");
         if (!form) return; // not on host legacy page
@@ -340,13 +410,114 @@
             const userId = (window.GetFromLocalStorage && window.localStorageKeys)
                 ? GetFromLocalStorage(localStorageKeys.UserId)
                 : null;
-            const userObj = userId ? { id: userId } : {};
-            await conn.invoke("JoinAsPlayer", sessionId, myName, userObj);
+
+            await conn.invoke("JoinAsPlayer", sessionId, myName, userId);
             show(form, false);
             if (typeof waitingPane !== 'undefined' && waitingPane) { waitingPane.style.display = ''; }
             show(playArea, false);
             setText(pStatus, "Joined — waiting for host…");
         });
+
+        function renderQuestionForPlayer(connection, gamePin, questionDto) {
+            const normalized = normalizeQuestionDto(questionDto);
+
+            // Show the question area
+            const questionArea = document.getElementById("pQuestion");
+            if (questionArea) {
+                questionArea.style.display = "";
+            }
+
+            // Hide upcoming block if present
+            const upcomingArea = document.getElementById("pUpcoming");
+            if (upcomingArea) {
+                upcomingArea.style.display = "none";
+            }
+
+            // Set the question text
+            setText("pQText", normalized.text);
+
+            // Build 2x2 option grid
+            const optionsContainer = document.getElementById("pOptions");
+            clearChildren(optionsContainer);
+
+            let answeredAlready = false;
+
+            normalized.options.forEach(function buildOption(option, optionIndex) {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "option-card";
+                button.setAttribute("data-index", String(optionIndex));
+
+                const label = document.createElement("span");
+                label.className = "option-label";
+                label.textContent = String(optionIndex + 1);
+
+                const textNode = document.createElement("span");
+                textNode.textContent = " " + (option.text ?? "");
+
+                button.appendChild(label);
+                button.appendChild(textNode);
+
+                button.addEventListener("click", async function handleClick() {
+                    if (answeredAlready) {
+                        return;
+                    }
+
+                    try {
+                        answeredAlready = true;
+
+                        // Disable all buttons
+                        const allButtons = optionsContainer.querySelectorAll(".option-card");
+                        allButtons.forEach(function disableButton(b) {
+                            b.setAttribute("disabled", "true");
+                        });
+
+                        setText("pAnswered", "Yes");
+
+                        await connection.invoke("SubmitAnswer", gamePin, optionIndex);
+                    } catch (error) {
+                        console.error("SubmitAnswer failed:", error);
+                    }
+                });
+
+                optionsContainer.appendChild(button);
+            });
+
+            // Start/refresh the per-question timer
+            const timerElement = document.getElementById("pTimer");
+            if (timerElement) {
+                const startUtc = normalized.questionStartTimeUtc;
+                const durationSeconds = normalized.durationSeconds;
+
+                // Paint once immediately
+                timerElement.textContent = String(
+                    secondsRemainingFromUtc(startUtc, durationSeconds)
+                );
+
+                // Update every 500ms until it hits 0
+                const intervalId = window.setInterval(function tickTimer() {
+                    const remain = secondsRemainingFromUtc(startUtc, durationSeconds);
+
+                    timerElement.textContent = String(remain);
+
+                    if (remain <= 0) {
+                        window.clearInterval(intervalId);
+                    }
+                }, 500);
+            }
+
+            // Mark "Answered: No" at the start
+            setText("pAnswered", "No");
+        }
+
+        conn.on("StartNextQuestion", function onStartNextQuestion(questionDto) {
+            if (questionDto == null) {
+                return;
+            }
+
+            renderQuestionForPlayer(conn, roomId, questionDto);
+        });
+        
     })();
 
 })();

@@ -56,38 +56,103 @@
         <div id="countdownNumber" class="countdown-number">3</div>
     </div>
 
-    <div id="playArea" style="display:none;">
-        <div class="row">
-            <div class="col-md-6">
-                <div id="pStatus" class="mb-2 text-muted">Waiting…</div>
-                <section id="pQuestion" style="display:none;">
-                    <h3 id="pQText"></h3>
-                    <div id="pOptions" class="d-grid gap-2"></div>
-                    <div class="mt-2">Answered: <span id="pAnswered">No</span></div>
-                </section>
-                <section id="pUpcoming" style="display:none;">
-                    <div class="alert alert-info">
-                        <div>Next question in <span id="pNextIn">0</span>s</div>
-                        <div id="pNextQ" class="fw-bold"></div>
-                        <ul id="pNextOpts"></ul>
-                    </div>
-                </section>
+    <div id="playArea" style="display: block;">
+        <div id="pQuestion">
+            <div class="mb-2">
+                <h3 id="pQText"></h3>
+                <div class="text-muted">Time left: <span id="pTimer">0</span>s</div>
+                <div class="text-muted">Answered: <span id="pAnswered">No</span></div>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <div>Timer: <span id="pTimer">0</span>s</div>
-                        <div>Score: <span id="pScore">0</span></div>
-                        <div>Place: <span id="pPlace">-</span></div>
-                    </div>
+
+            <div id="pOptions" class="option-grid"></div>
+        </div>
+
+        <div id="pUpcoming" style="display:none;">
+            <div>Next question in <span id="pNextIn">0</span>s</div>
+            <div id="pNextQ"></div>
+            <ul id="pNextOpts"></ul>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div>Timer: <span id="pTimer">0</span>s</div>
+                    <div>Score: <span id="pScore">0</span></div>
+                    <div>Place: <span id="pPlace">-</span></div>
                 </div>
             </div>
         </div>
     </div>
 </main>
 
+<style>
+    .option-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .option-card {
+        display: block;
+        width: 100%;
+        padding: 18px;
+        border-radius: 12px;
+        border: 1px solid #e2e2e2;
+        background: #f8f9fa;
+        text-align: left;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+        .option-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            background: #ffffff;
+        }
+
+        .option-card[disabled] {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+
+    .option-label {
+        display: inline-block;
+        min-width: 28px;
+        padding: 6px 10px;
+        margin-right: 8px;
+        border-radius: 999px;
+        background: #0d6efd;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    /* Optional: Kahoot-like colors per option index */
+    .opt-0 .option-label {
+        background: #e74c3c;
+    }
+    /* red */
+    .opt-1 .option-label {
+        background: #3498db;
+    }
+    /* blue */
+    .opt-2 .option-label {
+        background: #f1c40f;
+    }
+    /* yellow */
+    .opt-3 .option-label {
+        background: #2ecc71;
+    }
+    /* green */
+</style>
+
+
 @section Scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
     <script type="module">
         import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
         window.localStorageKeys = localStorageKeys;

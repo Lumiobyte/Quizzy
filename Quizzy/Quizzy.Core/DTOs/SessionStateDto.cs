@@ -8,7 +8,7 @@ namespace Quizzy.Core.DTOs
 {
     public class SessionStateDto
     {
-        public string RoomId { get; init; } = string.Empty;
+        public string SessionId { get; init; } = string.Empty;
 
         public string? Host { get; init; }
 

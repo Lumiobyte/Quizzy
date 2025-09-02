@@ -14,14 +14,16 @@ namespace Quizzy.Web.Hubs
     {
         private readonly SessionCoordinator _sessions;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         // Default per-question duration in seconds
         private const int DefaultQuestionDuration = 20;
 
-        public GameHub(SessionCoordinator sessions, IUnitOfWork unitOfWork)
+        public GameHub(SessionCoordinator sessions, IUnitOfWork unitOfWork, IServiceScopeFactory scopeFactory)
         {
             _sessions = sessions;
             _unitOfWork = unitOfWork;
+            _scopeFactory = scopeFactory;
         }
 
         private static SessionStateDto BuildStateDto(string gamePin, Services.SessionRuntime runtime, IEnumerable<QuizPlayer> dbPlayers)
@@ -43,7 +45,7 @@ namespace Quizzy.Web.Hubs
 
             return new SessionStateDto
             {
-                RoomId = gamePin.ToUpperInvariant(),
+                SessionId = gamePin.ToUpperInvariant(),
                 Host = string.IsNullOrEmpty(runtime.HostConnectionId) ? null : "Host",
                 Players = playersDto,
                 Question = current == null
@@ -176,11 +178,6 @@ namespace Quizzy.Web.Hubs
             return pin;
         }
 
-        public async Task StartNextQuestionNow(string gamePin)
-        {
-            await ScheduleNextQuestion(gamePin, 0);
-        }
-
         private QuizSession EnsureSessionForPin(string gamePin)
         {
             if (string.IsNullOrWhiteSpace(gamePin))
@@ -212,7 +209,7 @@ namespace Quizzy.Web.Hubs
             return sessionEntity;
         }
 
-        public async Task ScheduleNextQuestion(string gamePin, int inSeconds)
+        public async Task ScheduleNextQuestion(string gamePin, int inSeconds, int questionIndex)
         {
             if (string.IsNullOrWhiteSpace(gamePin))
             {
@@ -224,8 +221,7 @@ namespace Quizzy.Web.Hubs
                 inSeconds = 0;
             }
 
-            // Get or materialize the runtime from the existing DB session.
-            // Players should never create sessions here; this uses the fetch-or-fail helper.
+            // Get or materialize the runtime for this pin.
             SessionRuntime runtime;
             if (!_sessions.TryGet(gamePin, out runtime))
             {
@@ -233,14 +229,13 @@ namespace Quizzy.Web.Hubs
                 runtime = _sessions.GetOrCreate(gamePin, () => sessionEntity);
             }
 
-            // Decide the start UTC and inform the runtime so clients see "upcoming".
+            // Decide the start UTC and inform clients now (so they show the same countdown).
             DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddSeconds(inSeconds);
             runtime.SetUpcoming(startUtc);
 
-            // Tell everyone (host + players) about the upcoming start immediately.
             await BroadcastSessionState(gamePin, runtime);
 
-            // Fire-and-forget a timer that flips to the live question exactly at startUtc.
+            // Server-driven flip at startUtc using a FRESH scope and IHubContext.
             _ = Task.Run(async () =>
             {
                 int delayMilliseconds = Math.Max(0, (int)(startUtc - DateTimeOffset.UtcNow).TotalMilliseconds);
@@ -252,16 +247,107 @@ namespace Quizzy.Web.Hubs
 
                 try
                 {
-                    
+                    using var scope = _scopeFactory.CreateScope();
+
+                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<GameHub>>();
+
+                    // Read data using the fresh DbContext
+                    List<QuizQuestion> quizQuestions = await GetQuizQuestionsAsync(unitOfWork, gamePin);
+                    QuizQuestion question = GetQuizQuestionAtIndex(questionIndex, quizQuestions);
+
+                    QuestionStartedDto dto = BuildQuestionStartedDto(question);
+
+                    // Broadcast using the fresh hub context (NOT this hub instance)
+                    await hubContext.Clients.Group(gamePin).SendAsync("StartNextQuestion", dto);
                 }
                 catch (Exception exception)
                 {
+                    // Log properly in your app; this avoids taking down the process
                     Console.WriteLine($"{exception}\nFailed to start next question for {gamePin}");
                 }
             });
         }
 
-        public async Task JoinAsPlayer(string gamePin, string name, UserAccount userAccount)
+        private static QuestionStartedDto BuildQuestionStartedDto(QuizQuestion question)
+        {
+            if (question == null)
+            {
+                throw new ArgumentNullException(nameof(question));
+            }
+
+            var answers = question.Answers ?? Array.Empty<QuizAnswer>();
+
+            var answerStrings = answers
+                .OrderBy(a => a.Text)
+                .Select(a => a?.Text ?? string.Empty)
+                .Select(text => text.Trim())
+                .Where(text => !string.IsNullOrWhiteSpace(text))
+                .ToList();
+
+
+            return new QuestionStartedDto
+            {
+                Question = question.Text ?? string.Empty,
+                Options = answerStrings,
+                QuestionType = question.QuestionType,
+                DurationSeconds = 20,
+                StartTimeOffset = DateTimeOffset.UtcNow
+            };
+        }
+
+
+        private static async Task<List<QuizQuestion>> GetQuizQuestionsAsync(IUnitOfWork unitOfWork, string gamePin)
+        {
+            if (string.IsNullOrWhiteSpace(gamePin))
+            {
+                throw new ArgumentException("Pin is required.", nameof(gamePin));
+            }
+
+            string pinUpper = gamePin.Trim().ToUpperInvariant();
+
+            var session = (await unitOfWork.QuizSessions.FindAsync(s => s.GamePin == pinUpper)).FirstOrDefault();
+            if (session == null)
+            {
+                throw new HubException($"No live session found for code '{pinUpper}'.");
+            }
+
+            // Load quiz and its questions
+            if (session.Quiz == null)
+            {
+                session.Quiz = await unitOfWork.Quizzes.GetByIdWithDetailsAsync(session.QuizId);
+            }
+
+            var questions = session.Quiz?.Questions?.ToList() ?? new List<QuizQuestion>();
+
+            // Ensure each question has answers materialized (order however you want)
+            foreach (var q in questions)
+            {
+                if (q.Answers == null || !q.Answers.Any())
+                {
+                    q.Answers = (await unitOfWork.QuizAnswers.FindAsync(a => a.QuestionId == q.Id)).ToList();
+                }
+            }
+
+            return questions;
+        }
+
+        private static QuizQuestion GetQuizQuestionAtIndex(int index, IList<QuizQuestion> questions)
+        {
+            if (questions == null)
+            {
+                throw new ArgumentNullException(nameof(questions));
+            }
+
+            if (index < 0 || index >= questions.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "The index is out of range of the quiz questions.");
+            }
+
+            return questions[index];
+        }
+
+        public async Task JoinAsPlayer(string gamePin, string name, Guid playerGuid)
         {
             if (string.IsNullOrWhiteSpace(gamePin))
             {
@@ -273,7 +359,7 @@ namespace Quizzy.Web.Hubs
                 throw new ArgumentException("Player name is required");
             }
 
-            if (userAccount == null || userAccount.Id == Guid.Empty)
+            if (playerGuid == Guid.Empty)
             {
                 throw new HubException("Please log in before joining.");
             }
@@ -281,7 +367,7 @@ namespace Quizzy.Web.Hubs
             var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
             var session = runtime.Session;
 
-            var account = await _unitOfWork.UserAccounts.GetByIdAsync(userAccount.Id);
+            var account = await _unitOfWork.UserAccounts.GetByIdAsync(playerGuid);
             if (account == null)
             {
                 throw new HubException("User account not found.");

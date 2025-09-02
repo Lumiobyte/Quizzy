@@ -6,5 +6,5 @@ using System.Threading.Tasks;
 
 namespace Quizzy.Core.DTOs
 {
-    public record QuestionSummaryDto(int correctIndex, int[] optionCounts, (string Name, int Score)[] leaderboard);
+    public record QuestionSummaryDto(int CorrectIndex, int[] OptionCounts, (string Name, int Score)[] Leaderboard);
 }
