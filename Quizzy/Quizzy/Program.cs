@@ -1,3 +1,4 @@
+using OpenAI;
 using QuestPDF.Infrastructure;
 using Quizzy.Core;
 using Quizzy.Core.Repositories;
@@ -24,6 +25,9 @@ namespace Quizzy
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
+
+            builder.Services.AddSingleton(new OpenAIClient("key"));
+            builder.Services.AddScoped<IAIQuizGeneratorService, AIQuizGeneratorService>();
 
             var app = builder.Build();
 
