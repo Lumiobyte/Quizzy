@@ -269,6 +269,9 @@ namespace Quizzy.Web.Hubs
                         {
                             await Task.Delay(TimeSpan.FromSeconds(dto.DurationSeconds));
 
+                            if (runtime.CurrentQuestionStartUtc == null)
+                                return;
+
                             using var endScope = _scopeFactory.CreateScope();
                             var endUow = endScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                             var endHub = endScope.ServiceProvider.GetRequiredService<IHubContext<GameHub>>();
@@ -567,13 +570,19 @@ namespace Quizzy.Web.Hubs
 
             var chosen = answersOrdered[selectedIndex];
 
+            var now = DateTimeOffset.UtcNow;
+            if (!runtime.FirstAnswerUtc.HasValue)
+            {
+                runtime.FirstAnswerUtc = now;
+            }
+
             var pa = new PlayerAnswer
             {
                 Id = Guid.NewGuid(),
                 PlayerId = playerId,
                 QuestionId = question.Id,
                 AnswerId = chosen.Id,
-                ResponseTime = TimeSpan.FromTicks(0),
+                ResponseTime = now - runtime.FirstAnswerUtc.Value,
                 PointsValue = chosen.IsCorrect ? 1000 : 0 // SCORING FUNCTIONALITY HERE
             };
 
@@ -586,6 +595,7 @@ namespace Quizzy.Web.Hubs
             }
 
             await _unitOfWork.SaveChangesAsync();
+
             await BroadcastSessionState(gamePin, runtime);
         }
 

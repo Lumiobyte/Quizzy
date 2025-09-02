@@ -37,6 +37,8 @@ namespace Quizzy.Web.Services
 
         public ConcurrentDictionary<Guid, bool> AnsweredThisQuestion { get; } = new();
 
+        public DateTimeOffset? FirstAnswerUtc { get; set; }
+
         public int CurrentQuestionIndex { get; private set; } = -1;
 
         public DateTimeOffset? CurrentQuestionStartUtc { get; private set; }
@@ -64,7 +66,7 @@ namespace Quizzy.Web.Services
 
         public void ClearUpcoming() { NextQuestionStartUtc = null; }
 
-        public void BeginQuestionNow(int durationSeconds) { ClearUpcoming(); CurrentQuestionIndex++; CurrentQuestionStartUtc = DateTimeOffset.UtcNow; CurrentQuestionDurationSeconds = durationSeconds; AnsweredThisQuestion.Clear(); }
+        public void BeginQuestionNow(int durationSeconds) { ClearUpcoming(); CurrentQuestionIndex++; CurrentQuestionStartUtc = DateTimeOffset.UtcNow; CurrentQuestionDurationSeconds = durationSeconds; AnsweredThisQuestion.Clear(); FirstAnswerUtc = null; }
         // Explicitly begin a question by index and set the timer.
         public void BeginQuestionAt(int questionIndex, int durationSeconds)
         {
@@ -73,10 +75,11 @@ namespace Quizzy.Web.Services
             CurrentQuestionStartUtc = DateTimeOffset.UtcNow;
             CurrentQuestionDurationSeconds = durationSeconds;
             AnsweredThisQuestion.Clear();
+            FirstAnswerUtc = null;
         }
 
 
-        public void EndQuestion() { CurrentQuestionStartUtc = null; CurrentQuestionDurationSeconds = 0; AnsweredThisQuestion.Clear(); }
+        public void EndQuestion() { CurrentQuestionStartUtc = null; CurrentQuestionDurationSeconds = 0; AnsweredThisQuestion.Clear(); FirstAnswerUtc = null; }
 
         public void MarkAnswered(Guid playerId) { AnsweredThisQuestion[playerId] = true; }
 
