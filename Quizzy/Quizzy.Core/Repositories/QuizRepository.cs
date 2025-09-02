@@ -37,12 +37,12 @@ namespace Quizzy.Core.Repositories
             return base.AddAsync(quiz);
         }
 
-        public async Task LoadQuizQuestions(Quiz quiz)
+        public async Task LoadQuizQuestionsAsync(Quiz quiz)
         {
             await _dbContext.Entry(quiz).Collection(q => q.Questions).LoadAsync();
         }
 
-        public async Task LoadQuizQuestionsWithAnswers(Quiz quiz)
+        public async Task LoadQuizQuestionsWithAnswersAsync(Quiz quiz)
         {
             await _dbContext.Entry(quiz).Collection(q => q.Questions).Query().Include(q => q.Answers).LoadAsync();
         }

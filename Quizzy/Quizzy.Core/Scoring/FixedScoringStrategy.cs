@@ -1,5 +1,6 @@
 ﻿using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
+using System.Numerics;
 
 namespace Quizzy.Core.Scoring
 {
@@ -10,7 +11,15 @@ namespace Quizzy.Core.Scoring
 
         protected override async Task DoScoreSessionAsync(QuizSession session)
         {
-            // calculation implementation
+            foreach(var player in session.Players)
+            {
+                await _unitOfWork.QuizPlayers.LoadPlayerAnswersWithQuizAnswersAsync(player);
+
+                foreach (var correctAnswer in player.Answers.Where(a => a.Answer.IsCorrect))
+                {
+                    correctAnswer.PointsValue = 1000;
+                }
+            }
         }
 
     }

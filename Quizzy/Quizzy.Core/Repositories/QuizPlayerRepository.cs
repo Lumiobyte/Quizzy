@@ -8,12 +8,12 @@ namespace Quizzy.Core.Repositories
         
         public QuizPlayerRepository(QuizzyDbContext dbContext) : base(dbContext) { }
 
-        public async Task LoadPlayerAnswers(QuizPlayer player)
+        public async Task LoadPlayerAnswersAsync(QuizPlayer player)
         {
             await _dbContext.Entry(player).Collection(p => p.Answers).LoadAsync();
         }
 
-        public async Task LoadPlayerAnswersWithQuizAnswers(QuizPlayer player)
+        public async Task LoadPlayerAnswersWithQuizAnswersAsync(QuizPlayer player)
         {
             await _dbContext.Entry(player).Collection(p => p.Answers).Query().Include(a => a.Answer).LoadAsync();
         }

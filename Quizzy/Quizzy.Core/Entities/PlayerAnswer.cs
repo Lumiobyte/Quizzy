@@ -14,7 +14,7 @@
         public Guid AnswerId { get; set; }
         public QuizAnswer Answer { get; set; }
 
-        public DateTime DateTime { get; set; }
+        public TimeSpan ResponseTime { get; set; }
         public int PointsValue { get; set; } = 0;
 
     }
