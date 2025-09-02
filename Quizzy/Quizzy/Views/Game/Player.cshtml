@@ -10,47 +10,11 @@
             <div class="col-sm-4"><input id="pName" class="form-control" placeholder="Enter Name" required /></div>
             <div class="col-sm-4"><button type="submit" class="btn btn-primary w-100">Join</button></div>
         </div>
-        <div id="joinStatus" class="form-text"></div>
+        <div id="joinStatus" class="form-text">Not Joined</div>
     </form>
 
 
-    <style>
-        .countdown-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .countdown-number {
-            font-size: clamp(80px, 20vw, 240px);
-            color: #fff;
-            font-weight: 800;
-            line-height: 1;
-            animation: pop 1s ease-out infinite;
-            text-shadow: 0 8px 30px rgba(0,0,0,0.5);
-        }
-
-        @@keyframes pop {
-            0% {
-                transform: scale(0.6);
-                opacity: 0.6;
-            }
-
-            50% {
-                transform: scale(1.1);
-                opacity: 1;
-            }
-
-            100% {
-                transform: scale(1.0);
-                opacity: 0.9;
-            }
-        }
-    </style>
+    
 
     <div id="countdownOverlay" class="countdown-overlay">
         <div id="countdownNumber" class="countdown-number">3</div>
@@ -84,6 +48,123 @@
         </div>
     </div>
 </main>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script type="module">
+        import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+        window.localStorageKeys = localStorageKeys;
+        window.GetFromLocalStorage = GetFromLocalStorage;
+
+        const form = document.getElementById("joinForm");
+        const sessionInput = document.getElementById("pSession");
+        const nameInput = document.getElementById("pName");
+        const joinStatus = document.getElementById("joinStatus");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        let started = false;
+        async function ensureStarted(){ if(!started){ await connection.start(); started = true; } }
+
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const sessionId = (sessionInput.value || "").trim().toUpperCase();
+          const myName    = (nameInput.value || "").trim();
+          if (!sessionId || !myName) { joinStatus.textContent = "Enter session code and name"; return; }
+
+          try {
+            await ensureStarted();
+            const userId = GetFromLocalStorage(localStorageKeys.UserId);
+            await connection.invoke("JoinAsPlayer", sessionId, myName, userId);
+            joinStatus.textContent = "Joined — waiting for host…";
+          } catch (err) {
+            console.error("Join failed:", err);
+            joinStatus.textContent = err?.message || "Join failed";
+          }
+        });
+
+
+
+        function render(state) {
+            // My place / score
+            const players = Array.isArray(state.players) ? state.players : [];
+            const sorted = [...players].sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+            const myIndex = sorted.findIndex((p) => p.name === myName);
+            if (myIndex >= 0) setText(pPlace, `${myIndex + 1}/${sorted.length}`);
+            const me = players.find((p) => p.name === myName);
+            if (me) setText(pScore, me.score);
+
+            // Live question
+            if (state.question) {
+                setText(pStatus, "Answer the question!");
+                show(pQuestion, true);
+                show(pUpcoming, false);
+
+                setText(pQText, state.question.text);
+                pOptions.innerHTML = "";
+
+                const iHaveAnswered = !!players.find((p) => p.name === myName)?.hasAnswered;
+                answered = iHaveAnswered;
+                setText(pAnswered, answered ? "Yes" : "No");
+
+                (state.question.options || []).forEach((optText, idx) => {
+                    const btn = createAnswerButton(`${idx}: ${optText}`, answered, async () => {
+                        if (answered) return;
+                        answered = true;
+                        setText(pAnswered, "Yes");
+                        Array.from(pOptions.children).forEach((b) => b.setAttribute("disabled", "true"));
+                        await connection.invoke("SubmitAnswer", sessionId, idx);
+                    });
+                    pOptions.appendChild(btn);
+                });
+
+                // Question timer
+                questionTicker.start(() => {
+                    setText(
+                        pTimer,
+                        secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds)
+                    );
+                }, 500);
+
+                // Kill upcoming ticker while question is live
+                upcomingTicker.stop();
+            } else {
+                show(pQuestion, false);
+                questionTicker.stop();
+
+                // Upcoming preview (if any)
+                if (state.upcoming) {
+                    show(pUpcoming, true);
+                    setText(pNextQ, state.upcoming.text);
+                    pNextOpts.innerHTML = "";
+                    (state.upcoming.options || []).forEach((opt, idx) => {
+                        const li = document.createElement("li");
+                        li.textContent = `${idx}: ${opt}`;
+                        pNextOpts.appendChild(li);
+                    });
+
+                    // Next-start countdown
+                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
+                    const updateNext = () => setText(pNextIn, secondsUntilUtc(targetUtc));
+                    updateNext();
+                    upcomingTicker.start(updateNext, 500);
+                } else {
+                    show(pUpcoming, false);
+                    upcomingTicker.stop();
+                }
+
+                setText(pStatus, "Waiting…");
+            }
+        }
+        connection.on("SessionStateUpdated", render);
+    </script>
+    <script defer src="/js/quizzy.js"></script>
+}
 
 <style>
     .option-grid {
@@ -150,18 +231,40 @@
     /* green */
 </style>
 
+<style>
+    .countdown-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
 
-@section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
-    <script type="module">
-        import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
-        window.localStorageKeys = localStorageKeys;
-        window.GetFromLocalStorage = GetFromLocalStorage;
+    .countdown-number {
+        font-size: clamp(80px, 20vw, 240px);
+        color: #fff;
+        font-weight: 800;
+        line-height: 1;
+        animation: pop 1s ease-out infinite;
+        text-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
 
-        connection.on("StartNextQuestion", function ()
-        {
-            
+    @@keyframes pop {
+        0% {
+            transform: scale(0.6);
+            opacity: 0.6;
         }
-    </script>
-    <script defer src="/js/quizzy.js"></script>
-}
+
+        50% {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+
+        100% {
+            transform: scale(1.0);
+            opacity: 0.9;
+        }
+    }
+</style>

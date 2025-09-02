@@ -34,7 +34,7 @@
 </div>
 
 <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
 
 <script>
     (function () {
@@ -82,6 +82,49 @@
             copyBtn.textContent='Copied!';
             setTimeout(()=>copyBtn.textContent='Copy', 1200);
         });
+
+        <!-- #region hallucination -->
+
+            const nameInput = $("pName");
+            const sessionInput = $("pSession");
+            const playArea = $("playArea");
+            const pStatus = $("pStatus");
+            const pQText = $("pQText");
+            const pOptions = $("pOptions");
+            const waitingPane = $("waitingPane");
+            const pQuestion = $("pQuestion");
+            const pAnswered = $("pAnswered");
+            const pScore = $("pScore");
+            const pPlace = $("pPlace");
+            const pTimer = $("pTimer");
+            const pUpcoming = $("pUpcoming");
+            const pNextIn = $("pNextIn");
+            const pNextQ = $("pNextQ");
+            const pNextOpts = $("pNextOpts");
+
+            // State
+            let sessionId = null;
+            let myName = null;
+            let answered = false;
+            const questionTicker = makeTicker();
+            const upcomingTicker = makeTicker();
+
+            function makeTicker() {
+                let id = null;
+                return {
+                    start(fn, ms) {
+                        this.stop();
+                        id = setInterval(fn, ms);
+                    },
+                    stop() {
+                        if (id) {
+                            clearInterval(id); id = null;
+                        }
+                    }
+                };
+            }
+
+        <!-- #endregion -->
 
         connection.on("SessionStateUpdated", (state) =>
         {

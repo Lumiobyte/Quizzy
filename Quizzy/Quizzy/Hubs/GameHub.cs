@@ -374,7 +374,7 @@ namespace Quizzy.Web.Hubs
                 Question = question.Text ?? string.Empty,
                 Options = answerStrings,
                 QuestionType = question.QuestionType,
-                DurationSeconds = 20,
+                DurationSeconds = 3,
                 StartTimeOffset = DateTimeOffset.UtcNow
             };
         }
@@ -453,6 +453,8 @@ namespace Quizzy.Web.Hubs
             var session = runtime.Session;
 
             var account = await _unitOfWork.UserAccounts.GetByIdAsync(playerGuid);
+            //var players = _unitOfWork.UserAccounts.GetAllAsync().Result.ToList();
+
             if (account == null)
             {
                 throw new HubException("User account not found.");

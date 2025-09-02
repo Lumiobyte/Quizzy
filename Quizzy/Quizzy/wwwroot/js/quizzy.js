@@ -293,6 +293,8 @@
     // =====================================================================
     // PLAYER
     // =====================================================================
+
+
     (function playerScope() {
         const form = $("joinForm");
         if (!form) return;
@@ -400,38 +402,38 @@
         conn.on("SessionStateUpdated", render);
 
         // Join form
-        form.dataset.bound = "main";
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            sessionId = sessionInput.value.trim().toUpperCase();
-            myName = nameInput.value.trim();
-            if (!sessionId || !myName) return;
+        //form.dataset.bound = "main";
+        //form.addEventListener("submit", async (e) => {
+        //    e.preventDefault();
+        //    sessionId = sessionInput.value.trim().toUpperCase();
+        //    myName = nameInput.value.trim();
+        //    if (!sessionId || !myName) return;
 
-            await conn.start();
+        //    await conn.start();
 
-            const userId = localStorage.getItem("UserId");
-            try {
-                console.log("Join payload", {
-                    sessionId,
-                    myName,
-                    userIdFromLocalStorage: localStorage.getItem("UserId"),
-                    origin: location.origin,
-                    hasWrapper: !!window.GetFromLocalStorage,
-                    wrapperValue: (window.GetFromLocalStorage && window.localStorageKeys)
-                        ? GetFromLocalStorage(localStorageKeys.UserId)
-                        : "(wrapper missing)"
-                });
-                await conn.invoke("JoinAsPlayer", sessionId, myName, userId);
-                // proceed to waiting UI
-                form.style.display = "none";
-                if (typeof waitingPane !== "undefined" && waitingPane) waitingPane.style.display = "";
-                playArea && (playArea.style.display = "none");
-                setText(pStatus, "Joined — waiting for host…");
-            } catch (err) {
-                console.error("Join failed:", err);
-                setText(pStatus, (err && err.message) ? err.message : "Join failed — check login.");
-            }
-        });
+        //    const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        //    try {
+        //        //console.log("Join payload", {
+        //        //    sessionId,
+        //        //    myName,
+        //        //    userIdFromLocalStorage: localStorage.getItem("UserId"),
+        //        //    origin: location.origin,
+        //        //    hasWrapper: !!window.GetFromLocalStorage,
+        //        //    wrapperValue: (window.GetFromLocalStorage && window.localStorageKeys)
+        //        //        ? GetFromLocalStorage(localStorageKeys.UserId)
+        //        //        : "(wrapper missing)"
+        //        //});
+        //        await conn.invoke("JoinAsPlayer", sessionId, myName, userId);
+        //        // proceed to waiting UI
+        //        form.style.display = "none";
+        //        if (typeof waitingPane !== "undefined" && waitingPane) waitingPane.style.display = "";
+        //        playArea && (playArea.style.display = "none");
+        //        setText(pStatus, "Joined — waiting for host…");
+        //    } catch (err) {
+        //        console.error("Join failed:", err);
+        //        setText(pStatus, (err && err.message) ? err.message : "Join failed — check login.");
+        //    }
+        //});
 
 
         function renderQuestionForPlayer(connection, gamePin, questionDto) {
