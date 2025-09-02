@@ -23,9 +23,22 @@ namespace Quizzy.Core.Scoring
                 await _unitOfWork.QuizPlayers.LoadPlayerAnswersAsync(player);
             }
 
-            session.Players.OrderBy(p => p.TotalScore);
+            var orderedPlayers = session.Players.OrderByDescending(p => p.TotalScore);
 
-            // return KVP of players + their score.
+            var leaderboard = new List<LeaderboardPlayerDto>();
+            int rank = 1;
+
+            foreach(var player in orderedPlayers)
+            {
+                leaderboard.Add(new LeaderboardPlayerDto {
+                    PlayerName = player.Name,
+                    PlayerRanking = rank,
+                    PlayerScore = player.TotalScore
+                });
+                rank++;
+            }
+
+            return leaderboard;
         }
 
         public virtual async Task CalculatePlayerTotalsAsync(QuizSession session)

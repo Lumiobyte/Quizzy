@@ -8,8 +8,8 @@ namespace Quizzy.Core.DTOs
 {
     public class LeaderboardPlayerDto
     {
-        public string PlayerName { get; }
-        public int PlayerRanking { get; }
-        public int PlayerScore { get; }
+        public string PlayerName { get; set; }
+        public int PlayerRanking { get; set;  }
+        public int PlayerScore { get; set;  }
     }
 }
