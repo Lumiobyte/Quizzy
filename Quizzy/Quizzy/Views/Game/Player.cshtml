@@ -13,9 +13,6 @@
         <div id="joinStatus" class="form-text">Not Joined</div>
     </form>
 
-
-    
-
     <div id="countdownOverlay" class="countdown-overlay">
         <div id="countdownNumber" class="countdown-number">3</div>
     </div>
@@ -27,7 +24,6 @@
                 <div class="text-muted">Time left: <span id="pTimer">0</span>s</div>
                 <div class="text-muted">Answered: <span id="pAnswered">No</span></div>
             </div>
-
             <div id="pOptions" class="option-grid"></div>
         </div>
 
@@ -53,13 +49,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
     <script type="module">
         import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
-        window.localStorageKeys = localStorageKeys;
-        window.GetFromLocalStorage = GetFromLocalStorage;
 
         const form = document.getElementById("joinForm");
         const sessionInput = document.getElementById("pSession");
         const nameInput = document.getElementById("pName");
         const joinStatus = document.getElementById("joinStatus");
+
+        const pQText = document.getElementById("pQText");
+        const pOptions = document.getElementById("pOptions");
+        const pTimer = document.getElementById("pTimer");
+        const pAnswered = document.getElementById("pAnswered");
+        const pScore = document.getElementById("pScore");
+        const pPlace = document.getElementById("pPlace");
+        const pQuestion = document.getElementById("pQuestion");
+        const pUpcoming = document.getElementById("pUpcoming");
+        const pNextIn = document.getElementById("pNextIn");
+        const pNextQ = document.getElementById("pNextQ");
+        const pNextOpts = document.getElementById("pNextOpts");
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/gamehub")
@@ -69,75 +75,82 @@
         let started = false;
         async function ensureStarted(){ if(!started){ await connection.start(); started = true; } }
 
-        form.addEventListener("submit", async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        let sessionId = null;
+        let myName = null;
+        let answered = false;
+        const questionTicker = makeTicker();
+        const upcomingTicker = makeTicker();
 
-          const sessionId = (sessionInput.value || "").trim().toUpperCase();
-          const myName    = (nameInput.value || "").trim();
-          if (!sessionId || !myName) { joinStatus.textContent = "Enter session code and name"; return; }
+        function makeTicker(){ let id=null; return { start(fn,ms){ this.stop(); id=setInterval(fn,ms); }, stop(){ if(id){ clearInterval(id); id=null; } } }; }
+        function setText(el, text){ if(el) el.textContent = text ?? ""; }
+        function show(el, visible){ if(el) el.style.display = visible ? "" : "none"; }
+        function secondsRemainingFromUtc(startUtc, duration){ if(!startUtc) return 0; const started = new Date(startUtc).getTime(); const elapsed = (Date.now() - started)/1000; return Math.max(0, Math.floor(duration - elapsed)); }
+        function secondsUntilUtc(targetUtc){ if(!targetUtc) return 0; const target = new Date(targetUtc).getTime(); return Math.max(0, Math.floor((target - Date.now())/1000)); }
+        function createAnswerButton(text, disabled, onClick){ const btn = document.createElement("button"); btn.className = "option-card"; btn.textContent = text; if(disabled) btn.disabled = true; btn.onclick = onClick; return btn; }
 
-          try {
-            await ensureStarted();
-            const userId = GetFromLocalStorage(localStorageKeys.UserId);
-            await connection.invoke("JoinAsPlayer", sessionId, myName, userId);
-            joinStatus.textContent = "Joined - waiting for host...";
-          } catch (err) {
-            console.error("Join failed:", err);
-            joinStatus.textContent = err?.message || "Join failed";
-          }
+        form.addEventListener("submit", async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            sessionId = (sessionInput.value || "").trim().toUpperCase();
+            myName = (nameInput.value || "").trim();
+            if (!sessionId || !myName) { joinStatus.textContent = "Enter session code and name"; return; }
+
+            try {
+                await ensureStarted();
+                const userId = GetFromLocalStorage(localStorageKeys.UserId);
+                await connection.invoke("JoinAsPlayer", sessionId, myName, userId);
+                joinStatus.textContent = "Joined - waiting for host...";
+            } catch (err) {
+                console.error("Join failed:", err);
+                joinStatus.textContent = err?.message || "Join failed";
+            }
+        });
+
+        connection.on("StartNextQuestion", dto => {
+            answered = false;
+            setText(pAnswered, "No");
+            show(pQuestion, true);
+            show(pUpcoming, false);
+            setText(pQText, dto.question);
+            pOptions.innerHTML = "";
+            (dto.options || []).forEach((opt, idx) => {
+                const btn = createAnswerButton(`${idx}: ${opt}`, false, async () => {
+                    if (answered) return;
+                    answered = true;
+                    setText(pAnswered, "Yes");
+                    Array.from(pOptions.children).forEach(b => b.setAttribute("disabled", "true"));
+                    await connection.invoke("SubmitAnswer", sessionId, idx);
+                });
+                pOptions.appendChild(btn);
+            });
+            questionTicker.start(() => {
+                setText(pTimer, secondsRemainingFromUtc(dto.startTimeOffset, dto.durationSeconds));
+            }, 500);
+            upcomingTicker.stop();
+        });
+
+        connection.on("QuestionEnded", () => {
+            show(pQuestion, false);
+            questionTicker.stop();
         });
 
 
-
-        function render(state) {
+        function render(state){
             // My place / score
             const players = Array.isArray(state.players) ? state.players : [];
-            const sorted = [...players].sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
-            const myIndex = sorted.findIndex((p) => p.name === myName);
+            const sorted = [...players].sort((a,b)=>(b.score - a.score) || a.name.localeCompare(b.name));
+            const myIndex = sorted.findIndex(p => p.name === myName);
             if (myIndex >= 0) setText(pPlace, `${myIndex + 1}/${sorted.length}`);
-            const me = players.find((p) => p.name === myName);
+            const me = players.find(p => p.name === myName);
             if (me) setText(pScore, me.score);
 
             // Live question
-            if (state.question) {
-                setText(pStatus, "Answer the question!");
-                show(pQuestion, true);
-                show(pUpcoming, false);
-
-                setText(pQText, state.question.text);
-                pOptions.innerHTML = "";
-
-                const iHaveAnswered = !!players.find((p) => p.name === myName)?.hasAnswered;
-                answered = iHaveAnswered;
-                setText(pAnswered, answered ? "Yes" : "No");
-
-                (state.question.options || []).forEach((optText, idx) => {
-                    const btn = createAnswerButton(`${idx}: ${optText}`, answered, async () => {
-                        if (answered) return;
-                        answered = true;
-                        setText(pAnswered, "Yes");
-                        Array.from(pOptions.children).forEach((b) => b.setAttribute("disabled", "true"));
-                        await connection.invoke("SubmitAnswer", sessionId, idx);
-                    });
-                    pOptions.appendChild(btn);
-                });
-
-                // Question timer
-                questionTicker.start(() => {
-                    setText(
-                        pTimer,
-                        secondsRemainingFromUtc(state.question.questionStartTimeUtc, state.question.durationSeconds)
-                    );
-                }, 500);
-
-                // Kill upcoming ticker while question is live
-                upcomingTicker.stop();
-            } else {
-                show(pQuestion, false);
+            if (!state.question) {
                 questionTicker.stop();
+                show(pQuestion, false);
+                answered = false;
+                setText(pAnswered, "No");
 
-                // Upcoming preview (if any)
                 if (state.upcoming) {
                     show(pUpcoming, true);
                     setText(pNextQ, state.upcoming.text);
@@ -148,7 +161,6 @@
                         pNextOpts.appendChild(li);
                     });
 
-                    // Next-start countdown
                     const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
                     const updateNext = () => setText(pNextIn, secondsUntilUtc(targetUtc));
                     updateNext();
@@ -157,13 +169,10 @@
                     show(pUpcoming, false);
                     upcomingTicker.stop();
                 }
-
-                setText(pStatus, "Waiting…");
             }
         }
         connection.on("SessionStateUpdated", render);
     </script>
-    <script defer src="/js/quizzy.js"></script>
 }
 
 <style>
@@ -229,42 +238,4 @@
         background: #2ecc71;
     }
     /* green */
-</style>
-
-<style>
-    .countdown-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.85);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-    }
-
-    .countdown-number {
-        font-size: clamp(80px, 20vw, 240px);
-        color: #fff;
-        font-weight: 800;
-        line-height: 1;
-        animation: pop 1s ease-out infinite;
-        text-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    }
-
-    @@keyframes pop {
-        0% {
-            transform: scale(0.6);
-            opacity: 0.6;
-        }
-
-        50% {
-            transform: scale(1.1);
-            opacity: 1;
-        }
-
-        100% {
-            transform: scale(1.0);
-            opacity: 0.9;
-        }
-    }
 </style>
