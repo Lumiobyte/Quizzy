@@ -593,20 +593,26 @@ namespace Quizzy.Web.Hubs
                 QuestionId = question.Id,
                 AnswerId = chosen.Id,
                 ResponseTime = now - runtime.FirstAnswerUtc.Value,
-                PointsValue = chosen.IsCorrect ? 1000 : 0 // SCORING FUNCTIONALITY HERE
+                PointsValue = 0
             };
 
             await _unitOfWork.PlayerAnswers.AddAsync(pa);
 
             runtime.MarkAnswered(playerId);
-            if (chosen.IsCorrect)
-            {
-                runtime.ScoreByPlayer.AddOrUpdate(playerId, pa.PointsValue, (_, existing) => existing + pa.PointsValue);// SCORING FUNCTIONALITY HERE
-            }
 
             await _unitOfWork.SaveChangesAsync();
 
-            await BroadcastSessionState(gamePin, runtime);
+            var totalPlayers = runtime.PlayerByConnection.Values.Distinct().Count();
+            var allAnswered = totalPlayers > 0 && runtime.AnsweredThisQuestion.Count >= totalPlayers;
+
+            if (allAnswered)
+            {
+                await EndCurrentQuestion(gamePin);
+            }
+            else
+            {
+                await BroadcastSessionState(gamePin, runtime);
+            }
         }
 
         public async Task EndCurrentQuestion(string gamePin)
