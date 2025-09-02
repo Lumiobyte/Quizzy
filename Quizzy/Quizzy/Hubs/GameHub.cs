@@ -597,6 +597,13 @@ namespace Quizzy.Web.Hubs
             await _unitOfWork.SaveChangesAsync();
 
             await BroadcastSessionState(gamePin, runtime);
+
+            // If every registered player has answered, end the question early
+            var totalPlayers = runtime.ScoreByPlayer.Count;
+            if (totalPlayers > 0 && runtime.AnsweredThisQuestion.Count >= totalPlayers)
+            {
+                await EndCurrentQuestion(gamePin);
+            }
         }
 
         public async Task EndCurrentQuestion(string gamePin)
