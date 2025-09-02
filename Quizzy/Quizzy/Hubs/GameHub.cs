@@ -598,8 +598,8 @@ namespace Quizzy.Web.Hubs
 
             await BroadcastSessionState(gamePin, runtime);
 
-            // If every registered player has answered, end the question early
-            var totalPlayers = runtime.ScoreByPlayer.Count;
+            // If every connected player has answered, end the question early
+            var totalPlayers = runtime.PlayerByConnection.Values.Distinct().Count();
             if (totalPlayers > 0 && runtime.AnsweredThisQuestion.Count >= totalPlayers)
             {
                 await EndCurrentQuestion(gamePin);
