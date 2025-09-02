@@ -81,7 +81,7 @@
             await ensureStarted();
             const userId = GetFromLocalStorage(localStorageKeys.UserId);
             await connection.invoke("JoinAsPlayer", sessionId, myName, userId);
-            joinStatus.textContent = "Joined — waiting for host…";
+            joinStatus.textContent = "Joined - waiting for host...";
           } catch (err) {
             console.error("Join failed:", err);
             joinStatus.textContent = err?.message || "Join failed";
