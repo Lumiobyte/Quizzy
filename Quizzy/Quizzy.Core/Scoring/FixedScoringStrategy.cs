@@ -1,6 +1,5 @@
 ﻿using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
-using System.Numerics;
 
 namespace Quizzy.Core.Scoring
 {

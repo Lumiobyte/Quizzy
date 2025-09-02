@@ -16,5 +16,7 @@ namespace Quizzy.Core.Entities
 
         public ICollection<PlayerAnswer> Answers { get; set; } = new List<PlayerAnswer>();
 
+        public int TotalScore { get; set; } = 0;
+
     }
 }

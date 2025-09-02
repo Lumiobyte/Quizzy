@@ -20,6 +20,18 @@ namespace Quizzy.Core.Scoring
             // return KVP of players + their score.
         }
 
+        public virtual async Task CalculatePlayerTotalsAsync(QuizSession session)
+        {
+            foreach(var player in session.Players)
+            {
+                await _unitOfWork.QuizPlayers.LoadPlayerAnswersAsync(player);
+
+                int total = player.Answers.Sum(a => a.PointsValue);
+
+                player.TotalScore = total;
+            }
+        }
+
         public async Task ScoreSessionAsync(QuizSession session)
         {
             if (session.State is QuizState.InProgress || session.ScoringComplete)
@@ -28,6 +40,7 @@ namespace Quizzy.Core.Scoring
             }
 
             await DoScoreSessionAsync(session);
+            await CalculatePlayerTotalsAsync(session);
 
             session.ScoringComplete = true;
             await _unitOfWork.SaveChangesAsync();
