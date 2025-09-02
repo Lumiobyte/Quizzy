@@ -4,175 +4,101 @@
 
 <div class="text-center">
     <div class="d-inline-block">
-        <input id="search-text" class="user-options" type="text" placeholder="Search Quizzes" />
+        <input class="user-options" type="text" placeholder="Search Quizzes" />
         <a>Only show your quizzes: </a>
-        <input id="mine-only" class="user-options" type="checkbox" />
+        <input class="user-options" type="checkbox" placeholder="Search All Quizzes" />
         <button id="search-button" class="btn btn-primary user-options">Search Quizzes</button>
     </div>
-
     <div id="quizes-container"></div>
 </div>
 
-<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
-
-
 <script type="module">
-        import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+    import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
 
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/gamehub")
-            .withAutomaticReconnect()
-            .build();
+    let quizzes = [];
 
-        const searchTextInput = document.getElementById("search-text");
-        const mineOnlyCheckbox = document.getElementById("mine-only");
-        const searchButton = document.getElementById("search-button");
-        const quizzesContainer = document.getElementById("quizes-container");
+    function renderQuizzes() {
+        const container = document.getElementById('quizes-container');
+		const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        if (!Array.isArray(quizzes)) quizzes = [];
+        let html = '';
+        quizzes.forEach((quiz) => {
+            let editButton = '';
+            if (quiz.authorId == userId) editButton = `<a href="@Url.Content("~/Home/CreateQuiz")?id=${encodeURIComponent(quiz.id)}" class="btn btn-secondary">Edit Quiz</a>`;
+            html += `
+            <div class="card-body mb-3" style="width: 18rem; display: inline-block; margin: 0.5rem;">
+                <h5 class="card-title">${quiz.name ?? 'Untitled'}</h5>
+                <div>By ${quiz.authorName ?? 'Unknown'} - ${quiz.questionsNum ?? 0} questions long</div>
+                <div class="inline-block">
+					${editButton}
+                    <button class="btn btn-primary start-session-btn" data-id="${quiz.id}">Start Session</button>
+                </div>
+            </div>`;
+        });
 
-        function asString(value) {
-            return (typeof value === "string") ? value : "";
+        container.innerHTML = html || "<h3>No quizzes found</h3>";
+
+        container.querySelectorAll('.start-session-btn').forEach(btn => {
+            btn.addEventListener('click', () => joinGame(btn.dataset.id));
+        });
+    }
+
+    function joinGame(quizId) {
+        console.log(`Joining game ${quizId}`);
+    }
+
+    document.getElementById('search-button').addEventListener('click', () => {
+        const searchText = getSearchText();
+        if (isSearchingOnlyOwn()) {
+            if (searchText) searchMyQuizzes(searchText);
+            else getMyQuizzes();
+        } else {
+            if (searchText) searchQuizzes(searchText);
+            else getAllQuizzes();
         }
+    });
 
-        function coalesce(...values) {
-            for (const value of values) {
-                if (value !== null && value !== undefined) {
-                    return value;
-                }
-            }
-            return null;
-        }
-        function renderQuizzes(quizzes) {
-            const container = document.getElementById('quizes-container');
-            const userId = GetFromLocalStorage(localStorageKeys.UserId);
-            if (!Array.isArray(quizzes)) quizzes = [];
-            let html = '';
-            quizzes.forEach((quiz) => {
-                let editButton = '';
-                if (quiz.authorId == userId) editButton = `<a href="@Url.Content("~/Home/CreateQuiz")?id=${encodeURIComponent(quiz.id)}" class="btn btn-secondary">Edit Quiz</a>`;
-                html += `
-                <div class="card-body mb-3" style="width: 18rem; display: inline-block; margin: 0.5rem;">
-                    <h5 class="card-title">${quiz.name ?? 'Untitled'}</h5>
-                    <div>By ${quiz.authorName ?? 'Unknown'} - ${quiz.questionsNum ?? 0} questions long</div>
-                    <div class="inline-block">
-                        ${editButton}
-                    <button class="btn btn-primary start-session-btn" data-quiz-id="${quiz.id}">Start Session</button>
-                    </div>
-                </div>`;
-            });
+    function isSearchingOnlyOwn() {
+        const checkbox = document.querySelector('.user-options[type="checkbox"]');
+        return checkbox?.checked ?? false;
+    }
 
-            quizzesContainer.innerHTML = html;
+    function getSearchText() {
+        const input = document.querySelector('.user-options[type="text"]');
+        return input?.value ?? '';
+    }
 
-            const startButtons = quizzesContainer.querySelectorAll(".start-session-btn");
+    function getAllQuizzes() {
+        fetch('@Url.Content("~/QuizSelector/GetAll")')
+            .then(response => response.json())
+            .then(data => { quizzes = data; renderQuizzes(); })
+            .catch(error => console.error('Error fetching quizzes:', error));
+    }
 
-            for (const startButton of startButtons) {
-                startButton.addEventListener("click", async (event) => {
-                    const buttonElement = event.currentTarget;
-                    const quizId = buttonElement.getAttribute("data-quiz-id");
+    function getMyQuizzes() {
+        const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        fetch(`@Url.Content("~/QuizSelector/GetAllById")?id=${encodeURIComponent(userId ?? '')}`)
+            .then(response => response.json())
+            .then(data => { quizzes = data; renderQuizzes(); })
+            .catch(error => console.error('Error fetching quizzes:', error));
+    }
 
-                    if (!quizId) {
-                        alert("Quiz id not found.");
-                        return;
-                    }
+    function searchQuizzes(text) {
+        fetch(`@Url.Content("~/QuizSelector/GetAllByName")?name=${encodeURIComponent(text)}`)
+            .then(response => response.json())
+            .then(data => { quizzes = data; renderQuizzes(); })
+            .catch(error => console.error('Error fetching quizzes:', error));
+    }
 
-                    const hostUserId = GetFromLocalStorage(localStorageKeys.UserId);
+    function searchMyQuizzes(text) {
+        const userId = GetFromLocalStorage(localStorageKeys.UserId);
+        fetch(`@Url.Content("~/QuizSelector/GetAllByIdAndName")?id=${encodeURIComponent(userId ?? '')}&name=${encodeURIComponent(text)}`)
+            .then(response => response.json())
+            .then(data => { quizzes = data; renderQuizzes(); })
+            .catch(error => console.error('Error fetching quizzes:', error));
+    }
 
-                    if (!hostUserId) {
-                        alert("Please log in to host a session.");
-                        return;
-                    }
-
-                    try {
-                        buttonElement.disabled = true;
-
-                        if (connection.state !== "Connected") {
-                            await connection.start();
-                        }
-
-                        const pin = await connection.invoke("CreateAndClaimSessionForQuiz", hostUserId, quizId);
-
-                        if (pin && typeof pin === "string" && pin.length > 0) {
-                            window.location.href = "/Host/Lobby?pin=" + encodeURIComponent(pin);
-                        } else {
-                            alert("Failed to create a session.");
-                        }
-                    } 
-                    catch (error) 
-                    {
-                        console.error("Failed to start session", error);
-                        alert("Failed to start session: " + (error?.message ?? error));
-                    } 
-                    finally 
-                    {
-                        buttonElement.disabled = false;
-                    }
-                });
-            }
-        }
-
-        async function loadQuizzes() {
-            try {
-                const searchText = searchTextInput?.value ?? "";
-                const mineOnly = !!mineOnlyCheckbox?.checked;
-
-                const response = await fetch("@Url.Content("~/QuizSelector/GetAll")", {
-                    method: "GET",
-                    headers: {
-                        "Accept": "application/json"
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error("Failed to fetch quizzes.");
-                }
-
-                let quizzes = await response.json();
-
-                if (!Array.isArray(quizzes)) {
-                    quizzes = [];
-                }
-
-                // Client-side filtering (optional).
-                let filtered = quizzes;
-
-                if (searchText && searchText.trim().length > 0) {
-                    const term = searchText.trim().toLowerCase();
-
-                    filtered = filtered.filter((quiz) => {
-                        const title = asString(quiz?.title ?? quiz?.name).toLowerCase();
-                        const description = asString(quiz?.description).toLowerCase();
-                        return title.includes(term) || description.includes(term);
-                    });
-                }
-
-                if (mineOnly) {
-                    const myUserId = GetFromLocalStorage(localStorageKeys.UserId);
-
-                    if (myUserId) {
-                        filtered = filtered.filter((quiz) => {
-                            const ownerId = coalesce(quiz?.ownerUserId, quiz?.createdByUserId);
-                            return ownerId === myUserId;
-                        });
-                    }
-                }
-
-                renderQuizzes(filtered);
-            } catch (error) {
-                console.error("Error loading quizzes:", error);
-
-                quizzesContainer.innerHTML =
-                    `<div class="alert alert-danger">Failed to load quizzes. Please try again.</div>`;
-            }
-        }
-
-        if (searchButton) {
-            searchButton.addEventListener("click", async () => {
-                await loadQuizzes();
-            });
-        }
-
-        await loadQuizzes();
+    getAllQuizzes();
 </script>
 
 <style>
