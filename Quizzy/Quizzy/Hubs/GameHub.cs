@@ -145,6 +145,7 @@ namespace Quizzy.Web.Hubs
                 Id = Guid.NewGuid(),
                 GamePin = gamePin.ToUpperInvariant(),
                 QuizId = quiz.Id,
+                Quiz = quiz,
                 QuizHostId = host.Id
             };
             _unitOfWork.QuizSessions.AddAsync(session).GetAwaiter().GetResult();

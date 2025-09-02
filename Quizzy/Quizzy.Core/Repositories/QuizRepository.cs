@@ -26,5 +26,15 @@ namespace Quizzy.Core.Repositories
                     .ThenInclude(qq => qq.Answers)
                 .ToListAsync();
         }
+
+        public override Task AddAsync(Quiz quiz)
+        {
+            for(int i = 0; i < quiz.Questions.Count; i++)
+            {
+                quiz.Questions.ElementAt(i).OrderIndex = i;
+            }
+
+            return base.AddAsync(quiz);
+        }
     }
 }
