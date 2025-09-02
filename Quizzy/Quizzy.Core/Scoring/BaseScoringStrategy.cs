@@ -1,6 +1,8 @@
-﻿using Quizzy.Core.Entities;
-using Quizzy.Core.Repositories;
+﻿using Quizzy.Core.DTOs;
+using Quizzy.Core.Entities;
 using Quizzy.Core.Enums;
+using Quizzy.Core.Repositories;
+using System.Numerics;
 
 namespace Quizzy.Core.Scoring
 {
@@ -14,9 +16,15 @@ namespace Quizzy.Core.Scoring
             _unitOfWork = unitOfWork;
         }
 
-        public virtual async Task GetLeaderboardAsync(QuizSession session)
+        public virtual async Task<List<LeaderboardPlayerDto>> GetLeaderboardPlayersAsync(QuizSession session)
         {
-            // calculate lb based on scores
+            foreach(var player in session.Players)
+            {
+                await _unitOfWork.QuizPlayers.LoadPlayerAnswersAsync(player);
+            }
+
+            session.Players.OrderBy(p => p.TotalScore);
+
             // return KVP of players + their score.
         }
 
@@ -26,9 +34,7 @@ namespace Quizzy.Core.Scoring
             {
                 await _unitOfWork.QuizPlayers.LoadPlayerAnswersAsync(player);
 
-                int total = player.Answers.Sum(a => a.PointsValue);
-
-                player.TotalScore = total;
+                player.TotalScore = player.Answers.Sum(a => a.PointsValue);
             }
         }
 

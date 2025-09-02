@@ -1,0 +1,25 @@
+﻿@model Quizzy.Core.DTOs.LeaderboardDto
+
+<h1>Quiz Summary: @Model.QuizTitle</h1>
+<p>Total Questions: @Model.TotalQuestions</p>
+
+<h2>Player Scores</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Position</th>
+            <th>Player</th>
+            <th>Score</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var player in Model.LeaderboardPlayers)
+        {
+            <tr>
+                <td>@player.PlayerRanking</td>
+                <td>@player.PlayerName</td>
+                <td>@player.PlayerScore</td>
+            </tr>
+        }
+    </tbody>
+</table>
