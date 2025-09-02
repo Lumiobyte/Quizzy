@@ -48,11 +48,11 @@ namespace Quizzy.Web.Services
         public SessionRuntime(QuizSession session) { Session = session; }
 
         public QuizQuestion? CurrentQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex >= 0 && CurrentQuestionIndex < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex) 
+            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex)
             : null;
 
         public QuizQuestion? NextQuestion => (Session?.Quiz?.Questions != null && CurrentQuestionIndex + 1 < Session.Quiz.Questions.Count)
-            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex + 1) 
+            ? Session.Quiz.Questions.OrderBy(question => question.Id).ElementAt(CurrentQuestionIndex + 1)
             : null;
 
 
@@ -65,11 +65,21 @@ namespace Quizzy.Web.Services
         public void ClearUpcoming() { NextQuestionStartUtc = null; }
 
         public void BeginQuestionNow(int durationSeconds) { ClearUpcoming(); CurrentQuestionIndex++; CurrentQuestionStartUtc = DateTimeOffset.UtcNow; CurrentQuestionDurationSeconds = durationSeconds; AnsweredThisQuestion.Clear(); }
-        
+        // Explicitly begin a question by index and set the timer.
+        public void BeginQuestionAt(int questionIndex, int durationSeconds)
+        {
+            ClearUpcoming();
+            CurrentQuestionIndex = questionIndex;
+            CurrentQuestionStartUtc = DateTimeOffset.UtcNow;
+            CurrentQuestionDurationSeconds = durationSeconds;
+            AnsweredThisQuestion.Clear();
+        }
+
+
         public void EndQuestion() { CurrentQuestionStartUtc = null; CurrentQuestionDurationSeconds = 0; AnsweredThisQuestion.Clear(); }
-        
+
         public void MarkAnswered(Guid playerId) { AnsweredThisQuestion[playerId] = true; }
-        
+
         public bool HasAnswered(Guid playerId) => AnsweredThisQuestion.TryGetValue(playerId, out var value) && value;
     }
 }

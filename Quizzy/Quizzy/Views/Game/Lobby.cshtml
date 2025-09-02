@@ -62,6 +62,7 @@
 
         const copyBtn = document.getElementById('copyPin');
         const startNowBtn = $("startNowBtn");
+        let questionIndex = -1;
         const scheduleBtn = $("scheduleBtn");
         const endBtn = $("endBtn");
 
@@ -82,7 +83,7 @@
             setTimeout(()=>copyBtn.textContent='Copy', 1200);
         });
 
-        connection.on("SessionStateUpdated", (state) => 
+        connection.on("SessionStateUpdated", (state) =>
         {
             if (Array.isArray(state.players)) {
                 playerList.innerHTML = "";
@@ -173,27 +174,42 @@
 
                 await connection.start();
 
+            connection.on("StartNextQuestion", function () {
+                startNowBtn.disabled = true;
+                scheduleBtn.disabled = true;
+                endBtn.disabled = false;
+                statusEl.textContent = "Question live — timer running…";
+            });
+            connection.on("QuestionEnded", function () {
+                startNowBtn.disabled = false;
+                scheduleBtn.disabled = false;
+                endBtn.disabled = true;
+                statusEl.textContent = "Question ended. Ready for next.";
+            });
+
                 await connection.invoke("ClaimHost", pin);
 
                 startNowBtn.disabled = false;
                 scheduleBtn.disabled = false;
 
-                startNowBtn.addEventListener("click", async () => 
+                startNowBtn.addEventListener("click", async () =>
                 {
-                    await connection.invoke("ScheduleNextQuestion", pin, 0, 0);
+                    questionIndex += 1;
+                    await connection.invoke("ScheduleNextQuestion", pin, 0, questionIndex);
                 });
 
-                scheduleBtn.addEventListener("click", async () => 
+                scheduleBtn.addEventListener("click", async () =>
                 {
-                    await connection.invoke("ScheduleNextQuestion", pin, 3, 0);
+                    questionIndex += 1;
+                    await connection.invoke("ScheduleNextQuestion", pin, 3, questionIndex);
                 });
 
-                endBtn.addEventListener("click", async () => 
+                endBtn.addEventListener("click", async () =>
                 {
                     await connection.invoke("EndCurrentQuestion", pin);
                 });
-            } 
-            catch (error) 
+            }
+            catch (error)
             {
                 console.error("Lobby init error:", error);
                 statusEl.textContent = "Failed to connect.";

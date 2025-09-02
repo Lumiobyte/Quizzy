@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Quizzy.Core.Entities;
 using Quizzy.Core.Repositories;
 using Quizzy.Web.Services;
@@ -212,62 +212,145 @@ namespace Quizzy.Web.Hubs
         public async Task ScheduleNextQuestion(string gamePin, int inSeconds, int questionIndex)
         {
             if (string.IsNullOrWhiteSpace(gamePin))
-            {
                 throw new HubException("A room code is required.");
-            }
+            if (inSeconds < 0) inSeconds = 0;
 
-            if (inSeconds < 0)
+            // Get or materialize runtime
+            if (!_sessions.TryGet(gamePin, out var runtime))
             {
-                inSeconds = 0;
-            }
-
-            // Get or materialize the runtime for this pin.
-            SessionRuntime runtime;
-            if (!_sessions.TryGet(gamePin, out runtime))
-            {
-                QuizSession sessionEntity = EnsureSessionForPin(gamePin);
+                var sessionEntity = EnsureSessionForPin(gamePin);
                 runtime = _sessions.GetOrCreate(gamePin, () => sessionEntity);
             }
 
-            // Decide the start UTC and inform clients now (so they show the same countdown).
-            DateTimeOffset startUtc = DateTimeOffset.UtcNow.AddSeconds(inSeconds);
+            // Tell clients when the next question will start (for countdown UI)
+            var startUtc = DateTimeOffset.UtcNow.AddSeconds(inSeconds);
             runtime.SetUpcoming(startUtc);
-
             await BroadcastSessionState(gamePin, runtime);
 
-            // Server-driven flip at startUtc using a FRESH scope and IHubContext.
+            // Flip live at startUtc
             _ = Task.Run(async () =>
             {
-                int delayMilliseconds = Math.Max(0, (int)(startUtc - DateTimeOffset.UtcNow).TotalMilliseconds);
-
-                if (delayMilliseconds > 0)
-                {
-                    await Task.Delay(delayMilliseconds);
-                }
+                var delayMs = Math.Max(0, (int)(startUtc - DateTimeOffset.UtcNow).TotalMilliseconds);
+                if (delayMs > 0) await Task.Delay(delayMs);
 
                 try
                 {
-                    using var scope = _scopeFactory.CreateScope();
+                    // Fresh scope for "start" work
+                    using var startScope = _scopeFactory.CreateScope();
+                    var startUow = startScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var hubContext = startScope.ServiceProvider.GetRequiredService<IHubContext<GameHub>>();
 
-                    var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<GameHub>>();
+                    // Load quiz + questions
+                    var quizQuestions = await GetQuizQuestionsAsync(startUow, gamePin);
 
-                    // Read data using the fresh DbContext
-                    List<QuizQuestion> quizQuestions = await GetQuizQuestionsAsync(unitOfWork, gamePin);
-                    QuizQuestion question = GetQuizQuestionAtIndex(questionIndex, quizQuestions);
+                    // Decide the server-truth next index (don’t trust caller blindly)
+                    var nextIndex = 0;
+                    if (quizQuestions.Count > 0)
+                        nextIndex = Math.Min(Math.Max(0, runtime.CurrentQuestionIndex + 1), quizQuestions.Count - 1);
 
-                    QuestionStartedDto dto = BuildQuestionStartedDto(question);
+                    var question = GetQuizQuestionAtIndex(nextIndex, quizQuestions);
 
-                    // Broadcast using the fresh hub context (NOT this hub instance)
+                    // Build DTO and begin question now (sets index + timer + clears answered flags)
+                    var dto = BuildQuestionStartedDto(question);
+                    runtime.BeginQuestionAt(nextIndex, dto.DurationSeconds);
+
+                    // Broadcast the question
                     await hubContext.Clients.Group(gamePin).SendAsync("StartNextQuestion", dto);
+
+                    // Capture minimal IDs ONLY (don’t capture DbContext or tracked entities across the delay)
+                    var questionId = question.Id;
+                    var quizSessionId = runtime.Session.Id;
+
+                    // Auto-end after duration with a *new scope* so DbContext is valid
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(dto.DurationSeconds));
+
+                            using var endScope = _scopeFactory.CreateScope();
+                            var endUow = endScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                            var endHub = endScope.ServiceProvider.GetRequiredService<IHubContext<GameHub>>();
+
+                            // Reload everything needed INSIDE this fresh scope
+                            var answersOrdered = (await endUow.QuizAnswers.FindAsync(a => a.QuestionId == questionId))
+                                .OrderBy(a => a.Text)
+                                .ToList();
+
+                            var correctIndex = answersOrdered.FindIndex(a => a.IsCorrect);
+
+                            var players = (await endUow.QuizPlayers.FindAsync(p => p.QuizSessionId == quizSessionId)).ToList();
+                            var playerIds = players.Select(p => p.Id).ToHashSet();
+
+                            var allAnswers = (await endUow.PlayerAnswers.FindAsync(a => a.QuestionId == questionId)).ToList();
+
+                            var counts = Enumerable.Repeat(0, answersOrdered.Count).ToArray();
+                            foreach (var pa in allAnswers)
+                            {
+                                if (!playerIds.Contains(pa.PlayerId)) continue;
+                                var idx = answersOrdered.FindIndex(a => a.Id == pa.AnswerId);
+                                if (idx >= 0) counts[idx]++;
+                            }
+
+                            // Leaderboard from in-memory scores (fast) + names from DB
+                            var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
+                            var leaderboard = runtime.ScoreByPlayer
+                                .OrderByDescending(kv => kv.Value)
+                                .ThenBy(kv => nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : string.Empty, StringComparer.OrdinalIgnoreCase)
+                                .Take(50)
+                                .Select(kv => new { name = nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : "(unknown)", score = kv.Value })
+                                .ToArray();
+
+                            // Close the question
+                            runtime.EndQuestion();
+
+                            // Push results
+                            await endHub.Clients.Group(gamePin).SendAsync("QuestionEnded", new
+                            {
+                                correctIndex,
+                                optionCounts = counts,
+                                leaderboard
+                            });
+
+                            // Recreate a minimal SessionState (don’t call BroadcastSessionState here, it uses the hub’s scoped _unitOfWork)
+                            var playersDto = players
+                                .OrderBy(p => p.Name)
+                                .Select(p => new
+                                {
+                                    id = p.Id,
+                                    name = p.Name,
+                                    score = runtime.ScoreByPlayer.TryGetValue(p.Id, out var s) ? s : 0,
+                                    hasAnswered = runtime.HasAnswered(p.Id)
+                                })
+                                .Cast<object>()
+                                .ToArray();
+
+                            var sessionState = new SessionStateDto
+                            {
+                                SessionId = gamePin.ToUpperInvariant(),
+                                Host = string.IsNullOrEmpty(runtime.HostConnectionId) ? null : runtime.HostConnectionId,
+                                Players = playersDto,
+                                Question = null,  // ended
+                                Upcoming = null   // none scheduled
+                            };
+
+                            await endHub.Clients.Group(gamePin).SendAsync("SessionStateUpdated", sessionState);
+                        }
+                        catch (Exception ex)
+                        {
+                            // IMPORTANT: the previous error you saw originated here — now each delayed block uses its own scope.
+                            Console.WriteLine($"Auto-end failed: {ex}");
+                        }
+                    });
                 }
-                catch (Exception exception)
+                catch (Exception ex)
                 {
-                    // Log properly in your app; this avoids taking down the process
-                    Console.WriteLine($"{exception}\nFailed to start next question for {gamePin}");
+                    Console.WriteLine($"{ex}\nFailed to start next question for {gamePin}");
                 }
             });
         }
+
+
 
         private static QuestionStartedDto BuildQuestionStartedDto(QuizQuestion question)
         {
@@ -347,8 +430,15 @@ namespace Quizzy.Web.Hubs
             return questions[index];
         }
 
-        public async Task JoinAsPlayer(string gamePin, string name, Guid playerGuid)
+        public async Task JoinAsPlayer(string gamePin, string name, string playerId)
         {
+            _ = Guid.TryParse(playerId, out var playerGuid);
+
+            if (playerGuid == Guid.Empty)
+            {
+                await JoinAsPlayerWithoutLogin(gamePin, name);
+            }
+
             if (string.IsNullOrWhiteSpace(gamePin))
             {
                 throw new ArgumentException("The Game Pin is required");
@@ -357,11 +447,6 @@ namespace Quizzy.Web.Hubs
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new ArgumentException("Player name is required");
-            }
-
-            if (playerGuid == Guid.Empty)
-            {
-                throw new HubException("Please log in before joining.");
             }
 
             var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
@@ -413,6 +498,149 @@ namespace Quizzy.Web.Hubs
             runtime.RegisterPlayer(Context.ConnectionId, player.Id);
 
             await Groups.AddToGroupAsync(Context.ConnectionId, gamePin);
+
+            await BroadcastSessionState(gamePin, runtime);
+        }
+
+        //No login
+        public async Task JoinAsPlayerWithoutLogin(string gamePin, string name)
+        {
+            throw new NotImplementedException("");
+            if (string.IsNullOrWhiteSpace(gamePin)) throw new HubException("Room code is required.");
+            if (string.IsNullOrWhiteSpace(name)) throw new HubException("Player name is required.");
+
+            var runtime = _sessions.GetOrCreate(gamePin, () => EnsureSessionForPin(gamePin));
+            var session = runtime.Session;
+
+            // Create a transient pseudo-account (or look up by cookie/IP if you prefer)
+            var player = new QuizPlayer
+            {
+                Id = Guid.NewGuid(),
+                Name = name.Trim(),
+                QuizSessionId = session.Id,
+                UserAccountId = Guid.Parse("B5106106-9984-4110-9904-4D2C973F48F6") // set this to a user who isn't logged in
+            };
+            await _unitOfWork.QuizPlayers.AddAsync(player);
+            await _unitOfWork.SaveChangesAsync();
+
+            runtime.RegisterPlayer(Context.ConnectionId, player.Id);
+            await Groups.AddToGroupAsync(Context.ConnectionId, gamePin);
+            await BroadcastSessionState(gamePin, runtime);
+        }
+
+
+        public async Task SubmitAnswer(string gamePin, int selectedIndex)
+        {
+            if (string.IsNullOrWhiteSpace(gamePin))
+                throw new HubException("A room code is required.");
+
+            if (!_sessions.TryGet(gamePin, out var runtime))
+                throw new HubException("Session not found.");
+
+            if (!runtime.PlayerByConnection.TryGetValue(Context.ConnectionId, out var playerId))
+                throw new HubException("Player not registered in this session.");
+
+            if (runtime.HasAnswered(playerId))
+                return;
+
+            var quizQuestions = await GetQuizQuestionsAsync(_unitOfWork, gamePin);
+            var qIdx = runtime.CurrentQuestionIndex;
+            if (qIdx < 0 || qIdx >= quizQuestions.Count) return;
+
+            var question = quizQuestions[qIdx];
+            var answersOrdered = (question.Answers ?? Array.Empty<QuizAnswer>())
+                .OrderBy(a => a.Text)
+                .ToList();
+
+            if (selectedIndex < 0 || selectedIndex >= answersOrdered.Count) return;
+
+            var chosen = answersOrdered[selectedIndex];
+
+            var pa = new PlayerAnswer
+            {
+                Id = Guid.NewGuid(),
+                PlayerId = playerId,
+                QuestionId = question.Id,
+                AnswerId = chosen.Id,
+                DateTime = DateTime.UtcNow,
+                PointsValue = chosen.IsCorrect ? 1000 : 0
+            };
+
+            await _unitOfWork.PlayerAnswers.AddAsync(pa);
+
+            runtime.MarkAnswered(playerId);
+            if (chosen.IsCorrect)
+            {
+                runtime.ScoreByPlayer.AddOrUpdate(playerId, pa.PointsValue, (_, existing) => existing + pa.PointsValue);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            await BroadcastSessionState(gamePin, runtime);
+        }
+
+        /// <summary>
+        /// Ends the current live question immediately and broadcasts results.
+        /// </summary>
+        public async Task EndCurrentQuestion(string gamePin)
+        {
+            if (string.IsNullOrWhiteSpace(gamePin))
+                throw new HubException("A room code is required.");
+
+            if (!_sessions.TryGet(gamePin, out var runtime))
+                throw new HubException("Session not found.");
+
+            var session = runtime.Session ?? EnsureSessionForPin(gamePin);
+            var quizQuestions = await GetQuizQuestionsAsync(_unitOfWork, gamePin);
+
+            if (runtime.CurrentQuestionIndex < 0 || runtime.CurrentQuestionIndex >= quizQuestions.Count)
+            {
+                runtime.EndQuestion();
+                await Clients.Group(gamePin).SendAsync("QuestionEnded", new
+                {
+                    correctIndex = -1,
+                    optionCounts = Array.Empty<int>(),
+                    leaderboard = Array.Empty<object>()
+                });
+                await BroadcastSessionState(gamePin, runtime);
+                return;
+            }
+
+            var question = quizQuestions[runtime.CurrentQuestionIndex];
+
+            var answersOrdered = (question.Answers ?? Array.Empty<QuizAnswer>())
+                .OrderBy(a => a.Text)
+                .ToList();
+
+            var correctIndex = answersOrdered.FindIndex(a => a.IsCorrect);
+
+            var players = (await _unitOfWork.QuizPlayers.FindAsync(p => p.QuizSessionId == session.Id)).ToList();
+            var playerIds = players.Select(p => p.Id).ToHashSet();
+            var allAnswers = (await _unitOfWork.PlayerAnswers.FindAsync(a => a.QuestionId == question.Id)).ToList();
+
+            var counts = Enumerable.Repeat(0, answersOrdered.Count).ToArray();
+            foreach (var pa in allAnswers)
+            {
+                if (!playerIds.Contains(pa.PlayerId)) continue;
+                var idx = answersOrdered.FindIndex(a => a.Id == pa.AnswerId);
+                if (idx >= 0) counts[idx]++;
+            }
+
+            var nameByPlayer = players.ToDictionary(p => p.Id, p => p.Name ?? "");
+            var leaderboard = runtime.ScoreByPlayer
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Take(50)
+                .Select(kv => new { name = nameByPlayer.TryGetValue(kv.Key, out var nm) ? nm : "(unknown)", score = kv.Value })
+                .ToArray();
+
+            runtime.EndQuestion();
+
+            await Clients.Group(gamePin).SendAsync("QuestionEnded", new
+            {
+                correctIndex,
+                optionCounts = counts,
+                leaderboard
+            });
 
             await BroadcastSessionState(gamePin, runtime);
         }
