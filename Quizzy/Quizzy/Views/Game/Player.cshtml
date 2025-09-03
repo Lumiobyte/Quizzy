@@ -1,0 +1,309 @@
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Quizzy Player";
+}
+<main class="container">
+    <h1>Join a Quiz</h1>
+    <form id="joinForm" class="mb-3">
+        <div class="row g-2">
+            <div class="col-sm-4"><input id="pSession" class="form-control" placeholder="Session Code" required /></div>
+            <div class="col-sm-4"><input id="pName" class="form-control" placeholder="Enter Name" required /></div>
+            <div class="col-sm-4"><button type="submit" class="btn btn-primary w-100">Join</button></div>
+        </div>
+        <div id="joinStatus" class="form-text">Not Joined</div>
+    </form>
+
+    <div id="playArea" style="display: block;">
+        <div id="pQuestion">
+            <div class="mb-2">
+                <h3 id="pQText"></h3>
+                <div class="text-muted">Time left: <span id="pTimer">0</span>s</div>
+                <div class="text-muted">Answered: <span id="pAnswered">No</span></div>
+                <div class="text-muted">Players answered: <span id="pAnsweredCount">0</span>/<span id="pTotalPlayers">0</span></div>
+            </div>
+            <div id="pOptions" class="option-grid"></div>
+        </div>
+
+        <div id="pUpcoming" style="display:none;">
+            <div>Next question in <span id="pNextIn">0</span>s</div>
+            <div id="pNextQ"></div>
+            <ul id="pNextOpts"></ul>
+        </div>
+
+        <div id="pFinal" style="display:none;">
+            <h3>Quiz Finished!</h3>
+            <div>Your Score: <span id="pFinalScore">0</span></div>
+            <div>Your Place: <span id="pFinalPlace">-</span></div>
+            <button id="pReviewBtn" class="btn btn-secondary mt-2">Review Quiz</button>
+        </div>
+
+        <div id="pFeedback" style="display:none;">
+            <h3>Quiz Feedback</h3>
+            <textarea id="pFeedbackText" class="form-control" rows="4" placeholder="Your feedback"></textarea>
+            <button id="pSubmitFeedback" class="btn btn-primary mt-2">Submit Feedback</button>
+            <div id="pFeedbackStatus" class="form-text"></div>
+            <button id="pHomeBtn" class="btn btn-secondary mt-2" style="display:none;">Return Home</button>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div>Timer: <span id="pTimer">0</span>s</div>
+                    <div>Score: <span id="pScore">0</span></div>
+                    <div>Place: <span id="pPlace">-</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+    <script type="module">
+        import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+
+        const form = document.getElementById("joinForm");
+        const sessionInput = document.getElementById("pSession");
+        const nameInput = document.getElementById("pName");
+        const joinStatus = document.getElementById("joinStatus");
+
+        const pQText = document.getElementById("pQText");
+        const pOptions = document.getElementById("pOptions");
+        const pTimer = document.getElementById("pTimer");
+        const pAnswered = document.getElementById("pAnswered");
+        const pAnsweredCount = document.getElementById("pAnsweredCount");
+        const pTotalPlayers = document.getElementById("pTotalPlayers");
+        const pScore = document.getElementById("pScore");
+        const pPlace = document.getElementById("pPlace");
+        const pQuestion = document.getElementById("pQuestion");
+        const pUpcoming = document.getElementById("pUpcoming");
+        const pFinal = document.getElementById("pFinal");
+        const pFinalScore = document.getElementById("pFinalScore");
+        const pFinalPlace = document.getElementById("pFinalPlace");
+        const pReviewBtn = document.getElementById("pReviewBtn");
+        const pNextIn = document.getElementById("pNextIn");
+        const pFeedback = document.getElementById("pFeedback");
+        const pFeedbackText = document.getElementById("pFeedbackText");
+        const pFeedbackSubmit = document.getElementById("pSubmitFeedback");
+        const pFeedbackStatus = document.getElementById("pFeedbackStatus");
+        const pHomeBtn = document.getElementById("pHomeBtn");
+        const pNextQ = document.getElementById("pNextQ");
+        const pNextOpts = document.getElementById("pNextOpts");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        let started = false;
+        async function ensureStarted(){ if(!started){ await connection.start(); started = true; } }
+
+        let sessionId = null;
+        let myName = null;
+        let answered = false;
+        const questionTicker = makeTicker();
+        const upcomingTicker = makeTicker();
+
+        function makeTicker(){ let id=null; return { start(fn,ms){ this.stop(); id=setInterval(fn,ms); }, stop(){ if(id){ clearInterval(id); id=null; } } }; }
+        function setText(el, text){ if(el) el.textContent = text ?? ""; }
+        function show(el, visible){ if(el) el.style.display = visible ? "" : "none"; }
+        function secondsRemainingFromUtc(startUtc, duration){ if(!startUtc) return 0; const started = new Date(startUtc).getTime(); const elapsed = (Date.now() - started)/1000; return Math.max(0, Math.floor(duration - elapsed)); }
+        function secondsUntilUtc(targetUtc){ if(!targetUtc) return 0; const target = new Date(targetUtc).getTime(); return Math.max(0, Math.floor((target - Date.now())/1000)); }
+        function createAnswerButton(text, disabled, onClick){ const btn = document.createElement("button"); btn.className = "option-card"; btn.textContent = text; if(disabled) btn.disabled = true; btn.onclick = onClick; return btn; }
+
+        form.addEventListener("submit", async e => {
+            e.preventDefault();
+            e.stopPropagation();
+            sessionId = (sessionInput.value || "").trim().toUpperCase();
+            myName = (nameInput.value || "").trim();
+            if (!sessionId || !myName) { joinStatus.textContent = "Enter session code and name"; return; }
+
+            try {
+                await ensureStarted();
+                const userId = GetFromLocalStorage(localStorageKeys.UserId);
+                await connection.invoke("JoinAsPlayer", sessionId, myName, userId);
+                joinStatus.textContent = "Joined - waiting for host...";
+            } catch (err) {
+                console.error("Join failed:", err);
+                joinStatus.textContent = err?.message || "Join failed";
+            }
+        });
+
+        connection.on("StartNextQuestion", dto => {
+            answered = false;
+            setText(pAnswered, "No");
+            setText(pAnsweredCount, "0");
+            show(pQuestion, true);
+            show(pUpcoming, false);
+            show(pFinal, false);
+            setText(pQText, dto.question);
+            pOptions.innerHTML = "";
+            (dto.options || []).forEach((opt, idx) => {
+                const btn = createAnswerButton(`${idx}: ${opt}`, false, async () => {
+                    if (answered) return;
+                    answered = true;
+                    setText(pAnswered, "Yes");
+                    Array.from(pOptions.children).forEach(b => b.setAttribute("disabled", "true"));
+                    await connection.invoke("SubmitAnswer", sessionId, idx);
+                });
+                pOptions.appendChild(btn);
+            });
+            questionTicker.start(() => {
+                setText(pTimer, secondsRemainingFromUtc(dto.startTimeOffset, dto.durationSeconds));
+            }, 500);
+            upcomingTicker.stop();
+        });
+
+        connection.on("QuestionEnded", () => {
+            show(pQuestion, false);
+            questionTicker.stop();
+        });
+
+
+        function render(state){
+            // My place / score
+            const players = Array.isArray(state.players) ? state.players : [];
+            const sorted = [...players].sort((a,b)=>(b.score - a.score) || a.name.localeCompare(b.name));
+            const myIndex = sorted.findIndex(p => p.name === myName);
+            if (myIndex >= 0) setText(pPlace, `${myIndex + 1}/${sorted.length}`);
+            const me = players.find(p => p.name === myName);
+            if (me) setText(pScore, me.score);
+            setText(pTotalPlayers, players.length);
+            setText(pAnsweredCount, players.filter(p => p.hasAnswered).length);
+            const finished = !!state.finished;
+
+            if (finished) {
+                show(pFinal, true);
+                if (me) setText(pFinalScore, me.score);
+                if (myIndex >= 0) setText(pFinalPlace, `${myIndex + 1}/${sorted.length}`);
+            } else {
+                show(pFinal, false);
+            }
+
+            // Live question
+            if (!state.question) {
+                questionTicker.stop();
+                show(pQuestion, false);
+                answered = false;
+                setText(pAnswered, "No");
+
+                if (state.upcoming && !finished) {
+                    show(pUpcoming, true);
+                    show(pFinal, false);
+                    setText(pNextQ, state.upcoming.text);
+                    pNextOpts.innerHTML = "";
+                    (state.upcoming.options || []).forEach((opt, idx) => {
+                        const li = document.createElement("li");
+                        li.textContent = `${idx}: ${opt}`;
+                        pNextOpts.appendChild(li);
+                    });
+
+                    const targetUtc = state.upcoming.nextQuestionStartTimeUtc;
+                    const updateNext = () => setText(pNextIn, secondsUntilUtc(targetUtc));
+                    updateNext();
+                    upcomingTicker.start(updateNext, 500);
+                } else {
+                    show(pUpcoming, false);
+                    upcomingTicker.stop();
+                }
+            } else {
+                show(pFinal, false);
+            }
+        }
+        connection.on("SessionStateUpdated", render);
+
+        pReviewBtn.addEventListener("click", () => {
+            show(pFinal, false);
+            show(pFeedback, true);
+        });
+
+        pFeedbackSubmit.addEventListener("click", async () => {
+            const message = (pFeedbackText.value || "").trim();
+            if (!message) { pFeedbackStatus.textContent = "Please enter feedback"; return; }
+            try {
+                const res = await fetch('/Player/SubmitFeedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionPin: sessionId, playerName: myName, message })
+                });
+                if (res.ok) {
+                    pFeedbackStatus.textContent = 'Feedback submitted. Thank you!';
+                    pFeedbackText.setAttribute('disabled', 'true');
+                    pFeedbackSubmit.setAttribute('disabled', 'true');
+                    show(pHomeBtn, true);
+                } else {
+                    pFeedbackStatus.textContent = 'Failed to submit feedback';
+                }
+            } catch {
+                pFeedbackStatus.textContent = 'Failed to submit feedback';
+            }
+        });
+
+        pHomeBtn.addEventListener('click', () => { window.location.href = '/'; });
+    </script>
+}
+
+<style>
+    .option-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .option-card {
+        display: block;
+        width: 100%;
+        padding: 18px;
+        border-radius: 12px;
+        border: 1px solid #e2e2e2;
+        background: #f8f9fa;
+        text-align: left;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+        .option-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            background: #ffffff;
+        }
+
+        .option-card[disabled] {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+
+    .option-label {
+        display: inline-block;
+        min-width: 28px;
+        padding: 6px 10px;
+        margin-right: 8px;
+        border-radius: 999px;
+        background: #0d6efd;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    /* Optional: Kahoot-like colors per option index */
+    .opt-0 .option-label {
+        background: #e74c3c;
+    }
+    /* red */
+    .opt-1 .option-label {
+        background: #3498db;
+    }
+    /* blue */
+    .opt-2 .option-label {
+        background: #f1c40f;
+    }
+    /* yellow */
+    .opt-3 .option-label {
+        background: #2ecc71;
+    }
+    /* green */
+</style>
