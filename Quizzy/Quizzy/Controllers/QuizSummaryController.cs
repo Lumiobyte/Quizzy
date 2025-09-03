@@ -7,19 +7,9 @@ namespace Quizzy.Web.Controllers
 {
     public class QuizSummaryController(IUnitOfWork repository, IScoringStrategyFactory scoringStrategyFactory) : Controller
     {
-        public async Task<IActionResult> Index(string sessionId)
-        {
-            if (string.IsNullOrEmpty(sessionId))
-            {
-                return BadRequest("sessionId is required");
-            }
-
-            if(!Guid.TryParse(sessionId, out var sessionGuid))
-            {
-                return BadRequest("Invalid sessionId");
-            }
-
-            if (await repository.QuizSessions.GetByIdWithDetailsAsync(sessionGuid) is not { } session)
+        public async Task<IActionResult> Index(string pin)
+        { 
+            if (await repository.QuizSessions.GetByPinWithDetailsAsync(pin) is not { } session)
             {
                 return BadRequest("Session not found");
             }

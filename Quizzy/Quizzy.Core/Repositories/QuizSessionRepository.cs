@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Quizzy.Core.Entities;
 using Quizzy.Core.Extensions;
+using System.Threading.Tasks;
 
 namespace Quizzy.Core.Repositories
 {
@@ -20,6 +21,16 @@ namespace Quizzy.Core.Repositories
                 .FirstOrDefaultAsync();
         }
 
+        public async Task<QuizSession?> GetByPinWithDetailsAsync(string pin)
+        {
+            return await _dbContext.QuizSessions
+                .Where(s => s.GamePin == pin)
+                .Include(s => s.QuizHost)
+                .Include(s => s.Players)
+                .Include(s => s.Quiz)
+                    .ThenInclude(sq => sq.Questions)
+                .FirstOrDefaultAsync();
+        }
         public QuizQuestion? GetFirstQuestion(QuizSession session)
         {
             return session.Quiz.Questions.FirstOrDefault(q => q.OrderIndex == session.QuestionOrderList.First());

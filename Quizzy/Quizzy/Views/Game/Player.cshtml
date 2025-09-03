@@ -49,8 +49,6 @@
             <div class="card">
                 <div class="card-body">
                     <div>Timer: <span id="pTimer">0</span>s</div>
-                    <div>Score: <span id="pScore">0</span></div>
-                    <div>Place: <span id="pPlace">-</span></div>
                 </div>
             </div>
         </div>
@@ -73,8 +71,6 @@
         const pAnswered = document.getElementById("pAnswered");
         const pAnsweredCount = document.getElementById("pAnsweredCount");
         const pTotalPlayers = document.getElementById("pTotalPlayers");
-        const pScore = document.getElementById("pScore");
-        const pPlace = document.getElementById("pPlace");
         const pQuestion = document.getElementById("pQuestion");
         const pUpcoming = document.getElementById("pUpcoming");
         const pFinal = document.getElementById("pFinal");
@@ -165,9 +161,7 @@
             const players = Array.isArray(state.players) ? state.players : [];
             const sorted = [...players].sort((a,b)=>(b.score - a.score) || a.name.localeCompare(b.name));
             const myIndex = sorted.findIndex(p => p.name === myName);
-            if (myIndex >= 0) setText(pPlace, `${myIndex + 1}/${sorted.length}`);
             const me = players.find(p => p.name === myName);
-            if (me) setText(pScore, me.score);
             setText(pTotalPlayers, players.length);
             setText(pAnsweredCount, players.filter(p => p.hasAnswered).length);
             const finished = !!state.finished;
