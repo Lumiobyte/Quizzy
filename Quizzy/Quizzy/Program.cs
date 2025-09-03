@@ -2,6 +2,8 @@ using QuestPDF.Infrastructure;
 using Quizzy.Core;
 using Quizzy.Core.Repositories;
 using Quizzy.Core.Services;
+using Quizzy.Web.Hubs;
+using Quizzy.Web.Services;
 
 namespace Quizzy
 {
@@ -20,10 +22,13 @@ namespace Quizzy
             // DI Services
             builder.Services.AddDbContext<QuizzyDbContext>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddSignalR();
+            builder.Services.AddSingleton<SessionCoordinator>();
             builder.Services.AddScoped<ILoginService, LoginService>();
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
+            builder.Services.AddScoped<EmailService>();
 
             var app = builder.Build();
 
@@ -55,7 +60,7 @@ namespace Quizzy
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
-
+            app.MapHub<GameHub>("/gamehub");
             app.Run();
         }
     }
