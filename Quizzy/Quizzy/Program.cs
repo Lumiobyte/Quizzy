@@ -24,7 +24,6 @@ namespace Quizzy
             builder.Services.AddScoped<IQuizCreationService, QuizCreationService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
-            builder.Services.AddScoped<EmailService>();
 
             var app = builder.Build();
 
