@@ -167,5 +167,10 @@
                 statusEl.textContent = "Failed to connect.";
             }
         });
+
+        endBtn.addEventListener("click", async () =>
+        {
+            await connection.invoke("EndCurrentQuestion", pin);
+        });
     })();
 </script>

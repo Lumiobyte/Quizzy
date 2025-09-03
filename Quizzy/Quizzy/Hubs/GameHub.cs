@@ -48,13 +48,13 @@ namespace Quizzy.Web.Hubs
                 SessionId = gamePin.ToUpperInvariant(),
                 Host = string.IsNullOrEmpty(runtime.HostConnectionId) ? null : "Host",
                 Players = playersDto,
-                Question = current == null
+                Question = current == null || runtime.CurrentQuestionStartUtc == null
                     ? null
                     : new SessionStateDto.QuestionBlock(
                         current.Text,
                         current.Answers.OrderBy(answer => answer.Id).Select(answer => answer.Text).ToArray(),
                         runtime.CurrentQuestionDurationSeconds,
-                        runtime.CurrentQuestionStartUtc ?? DateTimeOffset.UtcNow
+                        runtime.CurrentQuestionStartUtc.Value
                     ),
                 Upcoming = next == null || runtime.NextQuestionStartUtc == null
                 ? null
@@ -62,7 +62,8 @@ namespace Quizzy.Web.Hubs
                     next.Text,
                     next.Answers.OrderBy(answer => answer.Id).Select(answer => answer.Text).ToArray(),
                     runtime.NextQuestionStartUtc.Value
-                )
+                ),
+                Finished = runtime.NextQuestion == null && runtime.CurrentQuestionStartUtc == null && runtime.CurrentQuestionIndex >= 0
             };
         }
 
@@ -137,7 +138,7 @@ namespace Quizzy.Web.Hubs
             var session = _unitOfWork.QuizSessions.FindAsync(s => s.GamePin == gamePin).GetAwaiter().GetResult().FirstOrDefault();
             if (session != null) return session;
 
-            var quiz = _unitOfWork.Quizzes.GetByIdAsync(quizId).GetAwaiter().GetResult();
+            var quiz = _unitOfWork.Quizzes.GetByIdWithDetailsAsync(quizId).GetAwaiter().GetResult();
             if (quiz == null) throw new InvalidOperationException("Quiz not found");
 
             session = new QuizSession
@@ -199,10 +200,10 @@ namespace Quizzy.Web.Hubs
                 throw new HubException($"No live session found for code '{pinUpper}'. Ask the host to start a new session.");
             }
 
-            if (sessionEntity.Quiz == null)
+            if (sessionEntity.Quiz == null || sessionEntity.Quiz.Questions == null || !sessionEntity.Quiz.Questions.Any())
             {
                 sessionEntity.Quiz = _unitOfWork.Quizzes
-                    .GetByIdAsync(sessionEntity.QuizId)
+                    .GetByIdWithDetailsAsync(sessionEntity.QuizId)
                     .GetAwaiter()
                     .GetResult();
             }
@@ -348,7 +349,8 @@ namespace Quizzy.Web.Hubs
                                 Host = string.IsNullOrEmpty(runtime.HostConnectionId) ? null : runtime.HostConnectionId,
                                 Players = playersDto,
                                 Question = null,  // ended
-                                Upcoming = null   // none scheduled
+                                Upcoming = null,  // none scheduled
+                                Finished = runtime.NextQuestion == null && runtime.CurrentQuestionStartUtc == null && runtime.CurrentQuestionIndex >= 0
                             };
 
                             await endHub.Clients.Group(gamePin).SendAsync("SessionStateUpdated", sessionState);
@@ -614,6 +616,9 @@ namespace Quizzy.Web.Hubs
             if (allAnswered)
             {
                 await EndCurrentQuestion(gamePin);
+            }
+            else
+            {
                 await BroadcastSessionState(gamePin, runtime);
             }
         }

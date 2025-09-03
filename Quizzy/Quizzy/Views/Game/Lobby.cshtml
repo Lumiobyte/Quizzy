@@ -82,11 +82,6 @@
                 startQuizBtn.addEventListener("click", () => {
                     window.location.href = `/Host/Quiz?pin=${encodeURIComponent(pin)}`;
                 });
-
-                endBtn.addEventListener("click", async () =>
-                {
-                    await connection.invoke("EndCurrentQuestion", pin);
-                });
             }
             catch (error) {
                 console.error("Lobby init error:", error);

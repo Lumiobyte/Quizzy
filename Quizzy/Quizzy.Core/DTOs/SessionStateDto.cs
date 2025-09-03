@@ -18,6 +18,8 @@ namespace Quizzy.Core.DTOs
 
         public UpcomingBlock? Upcoming { get; init; }
 
+        public bool Finished { get; init; }
+
         public record QuestionBlock(string Text, string[] Options, int DurationSeconds, DateTimeOffset QuestionStartTimeUtc);
 
         public record UpcomingBlock(string Text, string[] Options, DateTimeOffset NextQuestionStartTimeUtc);
