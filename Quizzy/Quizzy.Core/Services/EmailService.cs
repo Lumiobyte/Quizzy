@@ -10,6 +10,11 @@ namespace Quizzy.Core.Services
 
         public async Task SendEmailAsync(UserAccount reciever, string subject, string body, string[]? attachments = null)
         {
+            if (string.IsNullOrWhiteSpace(reciever?.Email) || !MailAddress.TryCreate(reciever.Email, out _))
+            {
+                throw new InvalidOperationException("Recipient email is invalid");
+            }
+
             string formattedBody = CreateEmailBody(body);
 
             using var message = new MailMessage

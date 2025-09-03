@@ -1,0 +1,51 @@
+﻿@{
+    ViewData["Title"] = "Final Results";
+    var pin = Context?.Request?.Query["pin"].ToString();
+}
+
+<div class="container py-4">
+    <h2 class="mb-3">Final Results</h2>
+    <div class="mb-3">Room PIN: <strong id="roomLabel">@pin</strong></div>
+
+    <h5>Leaderboard</h5>
+    <ol id="leaderboard" class="list-group list-group-numbered"></ol>
+</div>
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+    (function () {
+        function $(id) { return document.getElementById(id); }
+        const pin = (new URLSearchParams(window.location.search)).get("pin");
+        const roomLabel = $("roomLabel");
+        const leaderboardEl = $("leaderboard");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("SessionStateUpdated", state => {
+            const players = Array.isArray(state.players) ? state.players : [];
+            const sorted = [...players].sort((a,b) => (b.score - a.score) || a.name.localeCompare(b.name));
+            leaderboardEl.innerHTML = "";
+            for (const p of sorted) {
+                const li = document.createElement("li");
+                li.className = "list-group-item d-flex justify-content-between align-items-center";
+                li.textContent = p.name ?? "(unknown)";
+                const span = document.createElement("span");
+                span.className = "badge bg-primary rounded-pill";
+                span.textContent = p.score;
+                li.appendChild(span);
+                leaderboardEl.appendChild(li);
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            if (!pin) { return; }
+            roomLabel.textContent = pin;
+            await connection.start();
+            await connection.invoke("ClaimHost", pin);
+        });
+    })();
+</script>
