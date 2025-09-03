@@ -25,5 +25,8 @@ namespace Quizzy.Core.Entities
 
         public ICollection<QuizPlayer> Players { get; set; } = new List<QuizPlayer>();
 
+        public ScoringStrategyType ScoringStrategy { get; set; }
+        public bool ScoringComplete { get; set; } = false;
+
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Quizzy.Core.Entities
+﻿using Quizzy.Core.Enums;
+
+namespace Quizzy.Core.Entities
 {
     public class QuizPlayer
     {
@@ -13,6 +15,8 @@
         public QuizSession QuizSession { get; set; }
 
         public ICollection<PlayerAnswer> Answers { get; set; } = new List<PlayerAnswer>();
+
+        public int TotalScore { get; set; } = 0;
 
     }
 }
