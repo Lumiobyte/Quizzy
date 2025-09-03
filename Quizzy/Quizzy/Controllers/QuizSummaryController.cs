@@ -2,10 +2,11 @@
 using Quizzy.Core.DTOs;
 using Quizzy.Core.Repositories;
 using Quizzy.Core.Scoring;
+using Quizzy.Core.Services;
 
 namespace Quizzy.Web.Controllers
 {
-    public class QuizSummaryController(IUnitOfWork repository, IScoringStrategyFactory scoringStrategyFactory) : Controller
+    public class QuizSummaryController(IUnitOfWork repository, IScoringStrategyFactory scoringStrategyFactory, IReportingService reportingService) : Controller
     {
         public async Task<IActionResult> Index(string sessionId)
         {
@@ -28,6 +29,8 @@ namespace Quizzy.Web.Controllers
             await scoringStrategy.ScoreSessionAsync(session);
 
             var leaderboardPlayers = await scoringStrategy.GetLeaderboardPlayersAsync(session);
+
+            reportingService.SendReportsForSession(session);
 
             var leaderboard = new LeaderboardDto {
                 QuizTitle = session.Quiz.Title,

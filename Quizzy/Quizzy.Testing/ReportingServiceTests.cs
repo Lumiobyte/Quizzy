@@ -39,7 +39,8 @@ namespace Quizzy.Testing
                     {
                         new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
                         new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = false } },
-                    }
+                    },
+                    TotalScore = 1
                 },
                 new QuizPlayer
                 {
@@ -49,8 +50,9 @@ namespace Quizzy.Testing
                     {
                         new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
                         new PlayerAnswer { Id = Guid.NewGuid(), Answer = new QuizAnswer{ Id = Guid.NewGuid(), IsCorrect = true } },
-                    }
-                }
+                    },
+                    TotalScore = 2
+                },
             }
         };
 

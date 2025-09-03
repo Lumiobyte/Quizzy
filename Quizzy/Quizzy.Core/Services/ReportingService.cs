@@ -66,16 +66,16 @@ namespace Quizzy.Core.Services
                             {
                                 table.ColumnsDefinition(columns =>
                                 {
-                                    columns.ConstantColumn(36);   // Placement/Score
-                                    columns.RelativeColumn(3);    // Player
-                                    columns.ConstantColumn(80);   // Correct
+                                    columns.ConstantColumn(36);
+                                    columns.RelativeColumn(3);
+                                    columns.ConstantColumn(80);
                                 });
 
                                 table.Header(header =>
                                 {
                                     header.Cell().Element(HeaderCell).Text("#");
                                     header.Cell().Element(HeaderCell).Text("Player");
-                                    header.Cell().Element(HeaderCell).Text("Correct");
+                                    header.Cell().Element(HeaderCell).Text("Score");
                                 });
 
                                 for (int i = 0; i < orderedPlayers.Count; i++)
@@ -116,7 +116,7 @@ namespace Quizzy.Core.Services
                      .BorderBottom(1).BorderColor(Colors.Grey.Lighten3);
 
         List<QuizPlayer> GetPlayersByScoreOrder(QuizSession session)
-            => session.Players.OrderByDescending(p => p.Answers.Sum(a => a.Answer.IsCorrect ? 1 : 0))
-                .ToList();
+            => session.Players.OrderByDescending(p => p.TotalScore)
+            .ToList();
     }
 }
