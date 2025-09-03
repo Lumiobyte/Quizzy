@@ -8,7 +8,9 @@
     <h1 class="display-4">Welcome to Quizzy!</h1>
     <p>We are definitely not a ripoff of Kahoot!</p>
 
-    <div id="user-options" class="user-options"></div>
+    <div id="user-options" class="user-options">
+        <a class="btn text-dark btn-primary nav-link" href="/Home/Join">Join a Quiz</a>
+    </div>
 </div>
 
 <script type="module">
@@ -36,9 +38,8 @@
         }
     }
 
-    if (GetFromLocalStorage(localStorageKeys.UserId)) { // Join quiz is lockled behind an account atm. To move it to front page, you can put it in either or hardcode the html
-        document.getElementById("user-options").innerHTML = `
-            <a class="btn text-dark btn-primary nav-link" href="/Player">Join a Quiz</a>
+    if (GetFromLocalStorage(localStorageKeys.UserId)) {
+        document.getElementById("user-options").innerHTML += `
             <a class="btn text-dark btn-primary nav-link" href="/Home/CreateQuiz">Create a Quiz</a>
             <a class="btn text-dark btn-primary nav-link" href="/Home/QuizSelector">Search Quizzes</a>
             <a class="btn text-dark btn-danger" href="#" id="logoutButton">Logout</a>
