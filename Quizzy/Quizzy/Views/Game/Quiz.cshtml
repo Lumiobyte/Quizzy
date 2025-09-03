@@ -1,0 +1,176 @@
+﻿@{
+    ViewData["Title"] = "Host Quiz";
+    var pin = Context?.Request?.Query["pin"].ToString();
+}
+
+<div class="container py-4">
+    <h2 class="mb-3">Quiz Control</h2>
+
+    <div class="mb-3">
+        <div>Room PIN: <strong id="roomLabel">@pin</strong></div>
+        <div id="statusEl" class="text-muted">Waiting to start…</div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-lg-6">
+            <h5>Players Joined (<span id="playerCount">0</span>)</h5>
+            <ul id="playerList" class="list-group"></ul>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <h5>Controls</h5>
+            <div class="d-flex gap-2 flex-wrap">
+                <button id="startBtn" class="btn btn-success" disabled>Start Next Question</button>
+                <button id="endBtn" class="btn btn-outline-danger" disabled>End Question</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="questionBox" class="mt-3 card" style="display:none;">
+        <div class="card-body">
+            <h4 id="qText" class="card-title"></h4>
+            <div class="text-muted">Time left: <span id="qTimer">0</span>s</div>
+            <ul id="qOptions" class="mt-2"></ul>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+    (function () {
+        function $(id) { return document.getElementById(id); }
+        function secondsRemainingFromUtc(startUtc, duration) {
+            if (!startUtc) return 0;
+            const started = new Date(startUtc).getTime();
+            const elapsed = (Date.now() - started) / 1000;
+            return Math.max(0, Math.floor(duration - elapsed));
+        }
+
+        const pin = (new URLSearchParams(window.location.search)).get("pin");
+        const roomLabel = $("roomLabel");
+        const statusEl = $("statusEl");
+        const playerList = $("playerList");
+        const playerCount = $("playerCount");
+        const startBtn = $("startBtn");
+        const endBtn = $("endBtn");
+        const qText = $("qText");
+        const qTimer = $("qTimer");
+        const qOptions = $("qOptions");
+        const questionBox = $("questionBox");
+
+        let questionIndex = -1;
+        let totalQuestions = 0;
+        let questionTicker = null;
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        function showQuestion(dto) {
+            if (!dto) return;
+            const text = dto.text || dto.question || "";
+            const options = dto.options || [];
+            const startUtc = dto.questionStartTimeUtc || dto.startTimeOffset;
+            const duration = dto.durationSeconds || 0;
+
+            questionBox.style.display = "";
+            qText.textContent = text;
+            qOptions.innerHTML = "";
+            options.forEach((opt, idx) => {
+                const li = document.createElement("li");
+                li.textContent = `${idx}: ${opt}`;
+                qOptions.appendChild(li);
+            });
+
+            if (questionTicker) clearInterval(questionTicker);
+            questionTicker = setInterval(() => {
+                qTimer.textContent = String(secondsRemainingFromUtc(startUtc, duration));
+            }, 500);
+        }
+
+        function hideQuestion() {
+            questionBox.style.display = "none";
+            if (questionTicker) { clearInterval(questionTicker); questionTicker = null; }
+        }
+
+        connection.on("SessionStateUpdated", (state) => {
+            if (Array.isArray(state.players)) {
+                playerList.innerHTML = "";
+                for (const player of state.players) {
+                    const li = document.createElement("li");
+                    li.className = "list-group-item";
+                    li.textContent = player.name ?? "(unnamed)";
+                    playerList.appendChild(li);
+                }
+                playerCount.textContent = String(state.players.length);
+            }
+
+            if (state.question) {
+                statusEl.textContent = "Question live";
+                showQuestion(state.question);
+                startBtn.disabled = true;
+                endBtn.disabled = false;
+            } else {
+                hideQuestion();
+                statusEl.textContent = "Waiting for next question…";
+                if (questionIndex >= totalQuestions - 1 && totalQuestions > 0) {
+                    window.location.href = `/Host/Results?pin=${encodeURIComponent(pin)}`;
+                } else {
+                    startBtn.disabled = !!state.upcoming;
+                    endBtn.disabled = true;
+                }
+            }
+        });
+
+        connection.on("StartNextQuestion", function (dto) {
+            questionIndex += 1;
+            showQuestion(dto);
+            startBtn.disabled = true;
+            endBtn.disabled = false;
+            statusEl.textContent = "Question live — timer running…";
+        });
+        connection.on("QuestionEnded", function () {
+            hideQuestion();
+            if (questionIndex >= totalQuestions - 1 && totalQuestions > 0) {
+                window.location.href = `/Host/Results?pin=${encodeURIComponent(pin)}`;
+            } else {
+                startBtn.disabled = false;
+                endBtn.disabled = true;
+                statusEl.textContent = "Question ended. Ready for next.";
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                if (!pin) {
+                    statusEl.textContent = "Missing or invalid PIN.";
+                    return;
+                }
+                roomLabel.textContent = pin;
+                await connection.start();
+                await connection.invoke("ClaimHost", pin);
+                totalQuestions = await connection.invoke("GetQuestionCount", pin);
+                startBtn.disabled = false;
+
+                startBtn.addEventListener("click", async () => {
+                    startBtn.disabled = true;
+                    await connection.invoke("ScheduleNextQuestion", pin, 0, questionIndex + 1);
+                });
+
+                endBtn.addEventListener("click", async () => {
+                    await connection.invoke("EndCurrentQuestion", pin);
+                });
+            } catch (error) {
+                console.error("Quiz init error:", error);
+                statusEl.textContent = "Failed to connect.";
+            }
+        });
+
+        endBtn.addEventListener("click", async () =>
+        {
+            await connection.invoke("EndCurrentQuestion", pin);
+        });
+    })();
+</script>

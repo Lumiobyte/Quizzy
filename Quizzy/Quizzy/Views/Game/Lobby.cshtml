@@ -1,0 +1,92 @@
+@{
+    ViewData["Title"] = "Host Lobby";
+    var pin = Context?.Request?.Query["pin"].ToString();
+}
+
+<div class="container py-4">
+    <h2 class="mb-3">Host Lobby</h2>
+
+    <div class="mb-3">
+        <div>Room PIN: <strong id="roomLabel">@pin</strong></div>
+        <button id="copyPin" class="btn btn-sm btn-outline-secondary">Copy</button>
+        <div id="statusEl" class="text-muted">Waiting for players…</div>
+    </div>
+
+    <div>
+        <h5>Players Joined (<span id="playerCount">0</span>)</h5>
+        <ul id="playerList" class="list-group"></ul>
+    </div>
+
+    <div class="mt-3">
+        <button id="startQuizBtn" class="btn btn-success" disabled>Start Quiz</button>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+
+<script>
+    (function () {
+        function $(id) { return document.getElementById(id); }
+
+        const pin = (new URLSearchParams(window.location.search)).get("pin");
+
+        const roomLabel = $("roomLabel");
+        const statusEl = $("statusEl");
+        const playerList = $("playerList");
+        const playerCount = $("playerCount");
+
+        const copyBtn = $("copyPin");
+        const startQuizBtn = $("startQuizBtn");
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/gamehub")
+            .withAutomaticReconnect()
+            .build();
+
+        copyBtn.addEventListener('click', async () => {
+            await navigator.clipboard.writeText(pin);
+            copyBtn.textContent='Copied!';
+            setTimeout(()=>copyBtn.textContent='Copy', 1200);
+        });
+
+        connection.on("SessionStateUpdated", (state) => {
+            if (Array.isArray(state.players)) {
+                playerList.innerHTML = "";
+
+                for (const player of state.players) {
+                    const li = document.createElement("li");
+                    li.className = "list-group-item";
+                    li.textContent = player.name ?? "(unnamed)";
+                    playerList.appendChild(li);
+                }
+
+                playerCount.textContent = String(state.players.length);
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                if (!pin) {
+                    statusEl.textContent = "Missing or invalid PIN.";
+                    return;
+                }
+
+                roomLabel.textContent = pin;
+
+                await connection.start();
+
+                await connection.invoke("ClaimHost", pin);
+
+                startQuizBtn.disabled = false;
+                startQuizBtn.addEventListener("click", () => {
+                    window.location.href = `/Host/Quiz?pin=${encodeURIComponent(pin)}`;
+                });
+            }
+            catch (error) {
+                console.error("Lobby init error:", error);
+                statusEl.textContent = "Failed to connect.";
+            }
+        });
+    })();
+</script>
