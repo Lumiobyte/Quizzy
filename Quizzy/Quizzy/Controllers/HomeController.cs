@@ -33,6 +33,11 @@ namespace Quizzy.Controllers
             return View();
         }
 
+        public IActionResult AIQuizGenerator()
+        {
+            return View();
+        }
+
         public IActionResult CreateQuiz(Guid? id = null, string? import = null)
         {
             QuizCreatorModel model;
