@@ -8,7 +8,7 @@ namespace Quizzy
 {
     public class Program
     {
-        static bool seedOnStartup = true;
+        static bool seedOnStartup = false;
 
         public static void Main(string[] args)
         {
@@ -26,7 +26,7 @@ namespace Quizzy
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IEmailService, EmailService>();
 
-            builder.Services.AddSingleton(new OpenAIClient("key"));
+            builder.Services.AddSingleton(new OpenAIClient("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"));
             builder.Services.AddScoped<IAIQuizGeneratorService, AIQuizGeneratorService>();
 
             var app = builder.Build();

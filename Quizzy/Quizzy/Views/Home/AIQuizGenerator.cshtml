@@ -1,0 +1,44 @@
+﻿<div class="text-center">
+    <h2>AI Quiz Generator</h2>
+    <div class="inline-block">
+        <a>Create me a quiz about... </a>
+        <input id="prompt-input" type="text" />
+    </div>
+    <div class="inline-block">
+        <button id="generate-button" class="btn btn-primary">Generate</button>
+    </div>
+</div>
+
+<script type="module">
+    import { localStorageKeys, GetFromLocalStorage } from '/js/utils.js';
+
+    function generate() {
+        var prompt = document.getElementById("prompt-input").value;
+        if (prompt === "") {
+            alert("Please fill in the prompt field.");
+            return;
+        }
+
+        fetch(`../QuizCreator/AIGenerate?uId=${GetFromLocalStorage(localStorageKeys.UserId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(prompt)
+        })
+        .then(response => response.json())
+            .then(data => {
+        alert(data.message);
+    })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("An error occurred during generation.");
+        });
+    }
+    document.getElementById("generate-button").addEventListener("click", generate);
+</script>
+
+<style>
+    .inline {
+        display: inline-block;
+        text-align: left;
+    }
+</style>

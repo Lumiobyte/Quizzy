@@ -1,11 +1,13 @@
 ﻿using OpenAI;
 using OpenAI.Chat;
 using Quizzy.Core.Entities;
+using Quizzy.Core.Enums;
 using Quizzy.Core.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Quizzy.Core.Services
@@ -31,22 +33,80 @@ namespace Quizzy.Core.Services
         public async Task<Quiz> AIGenerateQuiz(string prompt)
         {
 
-            var messages = new List<ChatMessage>
+            var chatClient = _openAiClient.GetChatClient("gpt-4o-mini");
+            var response = await chatClient.CompleteChatAsync(new ChatMessage[]
             {
-                //new ChatMessage(ChatMessageRole.System, systemPrompt),
-                //new ChatMessage(ChatMessageRole.User, $"Create a quiz themed around: {prompt}") // prompt injection up the wazoo with this one
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage($"Create a quiz themed around: {prompt}") // prompt injection up the wazoo with this one
+            });
+
+            var quizObject = MapFromJson(response.Value.Content[0].Text, prompt + " Quiz");
+
+            return quizObject;
+        }
+
+        Quiz MapFromJson(string json, string quizTitle)
+        {
+            var doc = JsonDocument.Parse(json);
+
+            var quiz = new Quiz
+            {
+                Id = Guid.NewGuid(),
+                Title = quizTitle,
+                Questions = new List<QuizQuestion>()
             };
 
-            //var chatRequest = new ChatCompletionOptions
-            //{
-            //    Model = "gpt-4", // figure out who is cheapest??
-            //    Messages = { messages[0], messages[1] },
-            //    Temperature = 0.7
-            //};
+            int orderIndex = 0;
 
-            // return quiz;
+            foreach (var questionProp in doc.RootElement.EnumerateObject())
+            {
+                var qObj = questionProp.Value;
+                string type = qObj.GetProperty("type").GetString() ?? "";
+                string text = qObj.GetProperty("text").GetString() ?? "";
 
-            return new Quiz { };
+                var quizQuestion = new QuizQuestion
+                {
+                    Id = Guid.NewGuid(),
+                    Text = text,
+                    OrderIndex = orderIndex++,
+                    QuestionType = type.ToLower() switch
+                    {
+                        "mcq" => QuestionType.MultipleChoice,
+                        "short" => QuestionType.ShortAnswer,
+                        _ => QuestionType.MultipleChoice
+                    },
+                    Answers = new List<QuizAnswer>()
+                };
+
+                if (type == "mcq")
+                {
+                    foreach (var choice in qObj.GetProperty("choices").EnumerateArray())
+                    {
+                        quizQuestion.Answers.Add(new QuizAnswer
+                        {
+                            Id = Guid.NewGuid(),
+                            Text = choice.GetProperty("text").GetString() ?? "",
+                            IsCorrect = choice.GetProperty("correct").GetBoolean()
+                        });
+                    }
+                }
+                else if (type == "short")
+                {
+                    foreach (var choice in qObj.GetProperty("choices").EnumerateArray())
+                    {
+                        quizQuestion.Answers.Add(new QuizAnswer
+                        {
+                            Id = Guid.NewGuid(),
+                            Text = choice.GetString() ?? "",
+                            IsCorrect = true // all answer objects for a short answer question are marked correct
+                        });
+                    }
+                }
+
+                quiz.Questions.Add(quizQuestion);
+            }
+
+            return quiz;
         }
 
     }
