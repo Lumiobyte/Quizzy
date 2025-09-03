@@ -116,7 +116,7 @@
                 hideQuestion();
                 statusEl.textContent = "Waiting for next question…";
                 if (questionIndex >= totalQuestions - 1 && totalQuestions > 0) {
-                    window.location.href = `/Host/Results?pin=${encodeURIComponent(pin)}`;
+                    window.location.href = `/QuizSummary/Index?pin=${encodeURIComponent(pin)}`;
                 } else {
                     startBtn.disabled = !!state.upcoming;
                     endBtn.disabled = true;
@@ -134,7 +134,7 @@
         connection.on("QuestionEnded", function () {
             hideQuestion();
             if (questionIndex >= totalQuestions - 1 && totalQuestions > 0) {
-                window.location.href = `/Host/Results?pin=${encodeURIComponent(pin)}`;
+                window.location.href = `/QuizSummary/Index?sessionId=${encodeURIComponent(pin)}`;
             } else {
                 startBtn.disabled = false;
                 endBtn.disabled = true;

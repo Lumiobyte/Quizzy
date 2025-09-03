@@ -67,6 +67,33 @@ namespace Quizzy.Web.Hubs
             };
         }
 
+        public async Task SetSessionScoring(string pin, string scoringType)
+        {
+
+            if(await _unitOfWork.QuizSessions.GetByPinWithDetailsAsync(pin) is not { } session)
+            {
+                return;
+            }
+
+            switch (scoringType)
+            {
+                case "fixed":
+                    session.ScoringStrategy = Core.Enums.ScoringStrategyType.Fixed;
+                    break;
+                case "streak":
+                    session.ScoringStrategy = Core.Enums.ScoringStrategyType.Streak;
+                    break;
+                case "ranking":
+                    session.ScoringStrategy = Core.Enums.ScoringStrategyType.Ranking;
+                    break;
+                case "speed":
+                    session.ScoringStrategy = Core.Enums.ScoringStrategyType.Speed;
+                    break;
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
         private async Task BroadcastSessionState(string gamePin, Services.SessionRuntime runtime)
         {
             // Pull fresh players from DB to avoid stale names
