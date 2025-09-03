@@ -254,6 +254,8 @@ namespace Quizzy.Web.Hubs
                     // Build DTO and begin question now (sets index + timer + clears answered flags)
                     var dto = BuildQuestionStartedDto(question);
                     runtime.BeginQuestionAt(nextIndex, dto.DurationSeconds);
+                    var scheduledQuestionIndex = nextIndex;
+                    var autoEndToken = runtime.AutoEndTokenSource.Token;
 
                     // Broadcast the question
                     await hubContext.Clients.Group(gamePin).SendAsync("StartNextQuestion", dto);
@@ -267,7 +269,8 @@ namespace Quizzy.Web.Hubs
                     {
                         try
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(dto.DurationSeconds));
+                            await Task.Delay(TimeSpan.FromSeconds(dto.DurationSeconds), autoEndToken);
+                            if (scheduledQuestionIndex != runtime.CurrentQuestionIndex) return;
 
                             if (runtime.CurrentQuestionStartUtc == null)
                                 return;
@@ -350,9 +353,12 @@ namespace Quizzy.Web.Hubs
 
                             await endHub.Clients.Group(gamePin).SendAsync("SessionStateUpdated", sessionState);
                         }
+                        catch (TaskCanceledException)
+                        {
+                            // Timer was canceled or question changed so no action needed
+                        }
                         catch (Exception ex)
                         {
-                            // IMPORTANT: the previous error you saw originated here — now each delayed block uses its own scope.
                             Console.WriteLine($"Auto-end failed: {ex}");
                         }
                     });
