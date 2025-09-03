@@ -39,6 +39,8 @@
         const copyBtn = $("copyPin");
         const startQuizBtn = $("startQuizBtn");
 
+        let playersJoined = 0;
+
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/gamehub")
             .withAutomaticReconnect()
@@ -61,7 +63,12 @@
                     playerList.appendChild(li);
                 }
 
-                playerCount.textContent = String(state.players.length);
+                playersJoined = state.players.length;
+                playerCount.textContent = String(playersJoined);
+                startQuizBtn.disabled = playersJoined === 0;
+                statusEl.textContent = playersJoined === 0
+                    ? "Waiting for players…"
+                    : "Ready to start";
             }
         });
 
@@ -78,8 +85,13 @@
 
                 await connection.invoke("ClaimHost", pin);
 
-                startQuizBtn.disabled = false;
+                startQuizBtn.disabled = playersJoined === 0;
                 startQuizBtn.addEventListener("click", () => {
+                    if (playersJoined === 0) {
+                        statusEl.textContent = "At least one player must join before starting.";
+                        return;
+                    }
+
                     window.location.href = `/Host/Quiz?pin=${encodeURIComponent(pin)}`;
                 });
             }
