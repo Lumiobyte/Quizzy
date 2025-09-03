@@ -13,7 +13,7 @@ namespace Quizzy.Core.Services
             await emailService.SendEmailAsync(
                 session.QuizHost,
                 $"Report for Quiz Session: {session.Quiz.Title}",
-                $"The quiz session '{session.Quiz.Title}' has concluded. You can view the results in your dashboard.",
+                $"The quiz session '{session.Quiz.Title}' has concluded. Attached is a copy of the report for the session.",
                 attachments.ToArray()
             );
 
