@@ -81,11 +81,10 @@ namespace Quizzy.Core.Services
                                 for (int i = 0; i < orderedPlayers.Count; i++)
                                 {
                                     var player = orderedPlayers[i];
-                                    var correct = player.Answers?.Count(a => a.Answer.IsCorrect) ?? 0;
 
                                     table.Cell().Element(DataCell).Text((i + 1).ToString());
                                     table.Cell().Element(DataCell).Text(player.Name ?? "Unknown");
-                                    table.Cell().Element(DataCell).Text(correct.ToString());
+                                    table.Cell().Element(DataCell).Text(player.TotalScore.ToString());
                                 }
                             });
                         });
